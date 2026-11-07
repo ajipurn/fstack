@@ -1,0 +1,39 @@
+[project]
+name = "fstack-starter-api"
+version = "0.1.0"
+description = "Fstack Starter API"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.162,<1",
+    "uvicorn[standard]>=0.54,<1",
+    "pydantic>=2.14,<3",
+    "pydantic-settings>=2.16,<3",
+    "sqlalchemy>=2.1,<2.2",
+    "alembic>=1.20,<2",
+    "pymysql[rsa]>=1.2,<2",
+    "cryptography>=50",
+    "httpx>=0.28,<1",
+    "llmfy[openai,anthropic,boto3,google-genai]>=0.11,<0.12",
+]
+
+[dependency-groups]
+dev = ["pytest>=9,<10", "ruff>=0.17,<1"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::SyntaxWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008"]
+
+[tool.ruff.lint.isort]
+known-third-party = ["alembic"]
