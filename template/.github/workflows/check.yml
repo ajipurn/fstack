@@ -1,0 +1,27 @@
+name: Check
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root
+          MYSQL_DATABASE: fstack_starter
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-root"
+          --health-interval=5s --health-timeout=3s --health-retries=20
+    env:
+      APP_DATABASE_URL: mysql+pymysql://root:ci-root@127.0.0.1:3306/fstack_starter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: oven-sh/setup-bun@v2
+      - run: cd backend && uv sync --locked
+      - run: cd frontend && bun install --frozen-lockfile
+      - name: Migrate against real MySQL
+        run: cd backend && uv run alembic upgrade head
+      - run: make lint test build PM=bun

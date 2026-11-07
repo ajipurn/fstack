@@ -1,0 +1,14 @@
+.DS_Store
+node_modules/
+dist/
+*.tsbuildinfo
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.env
+.env.*
+!.env.example
+backend/.data/
+*.local.md
+.claude/settings.local.json
