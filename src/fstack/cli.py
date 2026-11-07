@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import getpass
 import hashlib
 import os
 import re
@@ -162,11 +163,23 @@ def render(files: list[Path], replacements: list[tuple[re.Pattern[str], str]]) -
             path.write_text(new, encoding="utf-8")
 
 
-def write_env(dest: Path, database_url: str | None, names: Names) -> bool:
+def root_password() -> tuple[str, str]:
+    """Local MySQL's root password and where it came from. $DB_ROOT_PASSWORD wins;
+    otherwise ask (a silent `root` default broke projects whose server uses another)."""
+    if value := os.environ.get("DB_ROOT_PASSWORD"):
+        return value, "from $DB_ROOT_PASSWORD"
+    if sys.stdin.isatty():
+        entered = getpass.getpass("  MySQL root password (DB_ROOT_PASSWORD isn't set; Enter = root): ")
+        if entered:
+            return entered, "as entered"
+    return "root", "default `root` (export DB_ROOT_PASSWORD if yours differs)"
+
+
+def write_env(dest: Path, database_url: str | None, names: Names, password: str) -> bool:
     """backend/.env with fresh secrets. Returns True when it was created.
 
-    Without --database-url the project connects to local MySQL as root, with the
-    password from $DB_ROOT_PASSWORD (else `root`); `make seed` creates the database.
+    Without --database-url the project connects to local MySQL as root with
+    `password`; `make seed` creates the database.
     """
     example = dest / "backend" / ".env.example"
     env = dest / "backend" / ".env"
@@ -177,8 +190,8 @@ def write_env(dest: Path, database_url: str | None, names: Names) -> bool:
     text = text.replace("APP_ENCRYPTION_KEY=\n", f"APP_ENCRYPTION_KEY={key}\n", 1)
     text = text.replace("APP_ACCESS_KEY=\n", f"APP_ACCESS_KEY={secrets.token_urlsafe(32)}\n", 1)
     if not database_url:
-        password = quote(os.environ.get("DB_ROOT_PASSWORD") or "root", safe="")
-        database_url = f"mysql+pymysql://root:{password}@127.0.0.1:3306/{names.snake}"
+        encoded = quote(password, safe="")
+        database_url = f"mysql+pymysql://root:{encoded}@127.0.0.1:3306/{names.snake}"
     line = f"APP_DATABASE_URL={database_url}"
     text = re.sub(r"^APP_DATABASE_URL=.*$", lambda _: line, text, flags=re.M)
     env.write_text(text, encoding="utf-8")
@@ -242,6 +255,9 @@ def cmd_new(args: argparse.Namespace) -> int:
         return 1
 
     print(f"\n  {_c('1', names.title)}  {_c('2', str(dest))}\n")
+    # Ask before writing anything, so Ctrl-C leaves no half-made project.
+    new_env = not args.database_url and not (dest / "backend" / ".env").exists()
+    password, source = root_password() if new_env else ("", "")
     files = copy_template(template_root(), dest)
     replacements = [
         (re.compile(re.escape(STARTER["slug"])), names.slug),
@@ -254,10 +270,14 @@ def cmd_new(args: argparse.Namespace) -> int:
     ]
     render(files, replacements)
     set_package_manager(dest, args.pm)
-    created_env = write_env(dest, args.database_url, names)
+    created_env = write_env(dest, args.database_url, names, password)
     ok(f"files written ({len(files)})  api :{api_port}  web :{web_port}  pm {args.pm}")
     if created_env:
         ok("backend/.env created with fresh secrets (sign in with APP_ACCESS_KEY)")
+        if source.startswith("default"):
+            warn(f"MySQL root password: {source}")
+        elif source:
+            ok(f"MySQL root password {source}")
 
     if not args.no_install:
         if shutil.which("uv"):
@@ -310,6 +330,10 @@ def cmd_doctor(_: argparse.Namespace) -> int:
         else:
             warn(f"{tool:<9} {'missing':<10} {_c('2', purpose)}")
             missing += tool in {"uv", "python3"}
+    if os.environ.get("DB_ROOT_PASSWORD"):
+        ok(f"{'DB_ROOT_PASSWORD':<20} {_c('2', 'set: fstack new writes it into backend/.env')}")
+    else:
+        warn(f"{'DB_ROOT_PASSWORD':<20} {_c('2', 'not set: fstack new will ask for MySQL’s root password')}")
     print(f"\n  template: {template_root()}")
     return 1 if missing else 0
 

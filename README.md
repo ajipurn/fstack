@@ -22,8 +22,9 @@ The repo is private: ask for read access first (a collaborator with `pull` is en
    fstack doctor
    ```
 
-4. If your local MySQL's root password isn't `root`, export it once (e.g. in `~/.zshrc`)
-   before `fstack new`: `export DB_ROOT_PASSWORD='…'`.
+4. Export your local MySQL's root password once (e.g. in `~/.zshrc`) so `fstack new`
+   writes it into `backend/.env`: `export DB_ROOT_PASSWORD='…'`. Without it, `fstack new`
+   asks (Enter = `root`).
 
 Update with `uv tool upgrade fstack`. Template changes reach projects created after the
 update; existing projects keep the code they were scaffolded with. To stay on a known
@@ -54,7 +55,7 @@ projects can run side by side), writes `backend/.env` with fresh secrets, runs
 |---|---|---|
 | `--pm bun\|pnpm` | `bun` | frontend package manager (Makefile, CI, packageManager) |
 | `--accent #hex` | `#2f3037` | primary button / brand color; text color picked for contrast |
-| `--database-url` | local MySQL as root (`$DB_ROOT_PASSWORD`, else `root`), DB = project name | written to `backend/.env`; `make seed` creates the DB |
+| `--database-url` | local MySQL as root (`$DB_ROOT_PASSWORD`, else it asks), DB = project name | written to `backend/.env`; `make seed` creates the DB |
 | `--api-port`, `--web-port` | derived from the name | |
 | `--title` | from the name | display name |
 | `--no-install`, `--no-git`, `--force` | | |
