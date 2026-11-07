@@ -1,0 +1,19 @@
+[project]
+name = "fstack"
+version = "0.1.0"
+description = "Personal full-stack scaffolder: FastAPI + llmfy + MySQL + React/Vite dashboard."
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+fstack = "fstack.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fstack"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"template" = "fstack/template"
