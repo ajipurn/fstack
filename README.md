@@ -9,6 +9,28 @@ Distilled from `pelni-assessment`, `py-new-assessment-center` (bars-dashboard),
 
 ## Install
 
+### Team
+
+The repo is private: ask for read access first (a collaborator with `pull` is enough).
+
+1. Have `uv`, `bun` (or `pnpm`), `git`, and Apple `container` or Docker for MySQL.
+2. Let git reach the private repo: `gh auth login` (or an SSH key on GitHub).
+3. Install, then check the toolchain:
+
+   ```bash
+   uv tool install git+https://github.com/ajipurn/fstack
+   fstack doctor
+   ```
+
+4. If your local MySQL's root password isn't `root`, export it once (e.g. in `~/.zshrc`)
+   before `fstack new`: `export DB_ROOT_PASSWORD='…'`.
+
+Update with `uv tool upgrade fstack`. Template changes reach projects created after the
+update; existing projects keep the code they were scaffolded with. To stay on a known
+release, install a git tag instead: `git+https://github.com/ajipurn/fstack@<tag>`.
+
+### Working on fstack
+
 ```bash
 uv tool install --editable ~/Developer/Projects/fstack
 ```
