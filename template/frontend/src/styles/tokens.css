@@ -1,0 +1,147 @@
+/* Design tokens. Cool neutrals, hairline borders, one restrained accent.
+   The accent is a single hex (set by `fstack new --accent`); hover/soft/ring
+   shades are derived with color-mix so a project re-skins in one line. */
+
+:root {
+  --accent-base: #2f3037; /* fstack:accent */
+
+  --font-ui: "Geist Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Scaled-down type scale (13px body). */
+  --text-2xs: 0.6875rem; /* 11 */
+  --text-xs: 0.75rem; /* 12 */
+  --text-sm: 0.8125rem; /* 13 */
+  --text-md: 0.875rem; /* 14 */
+  --text-lg: 1rem; /* 16 */
+  --text-xl: 1.25rem; /* 20 */
+  --text-2xl: 1.5rem; /* 24 */
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --control-h: 2rem; /* 32 */
+  --control-h-sm: 1.75rem; /* 28 */
+  --header-h: 3.25rem; /* 52 */
+  --tabs-h: 2.5rem; /* 40 */
+  --page-max: 1280px;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.36, 0.64, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 260ms;
+}
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --canvas: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f7f7f8;
+  --surface-3: #f1f1f3;
+  --ink: #131316;
+  --ink-2: #42434d;
+  --muted: #747686;
+  --faint: #9394a1;
+  --line: #e9e9ec;
+  --line-2: #dcdce1;
+  --line-3: #c3c3cb;
+
+  --accent: var(--accent-base);
+  --accent-hover: color-mix(in oklab, var(--accent-base) 88%, white);
+  --accent-ink: #ffffff; /* fstack:accent-ink */
+  --accent-soft: color-mix(in oklab, var(--accent-base) 9%, white);
+  --accent-soft-ink: color-mix(in oklab, var(--accent-base) 85%, black);
+
+  --ok: #1f9d47;
+  --ok-soft: #e4f6e9;
+  --ok-ink: #17692c;
+  --warn: #c98a16;
+  --warn-soft: #fdf3dc;
+  --warn-ink: #714d05;
+  --danger: #e5484d;
+  --danger-soft: #fdecec;
+  --danger-ink: #a12a22;
+  --info: #3e63dd;
+  --info-soft: #edf2fe;
+  --info-ink: #2a4bb5;
+
+  --shadow-xs: 0 1px 1px rgb(19 19 22 / 0.04);
+  --shadow-card: 0 1px 2px rgb(19 19 22 / 0.04), 0 4px 12px -6px rgb(19 19 22 / 0.06);
+  --shadow-raised: 0 1px 2px rgb(19 19 22 / 0.05), 0 8px 24px -12px rgb(19 19 22 / 0.16);
+  --shadow-popup: 0 2px 6px rgb(19 19 22 / 0.06), 0 16px 40px -16px rgb(19 19 22 / 0.24);
+  --shadow-dialog: 0 8px 20px rgb(19 19 22 / 0.08), 0 32px 72px -24px rgb(19 19 22 / 0.3);
+  --backdrop: rgb(23 23 26 / 0.28);
+
+  /* Clerk-style button anatomy: inner highlight + close/far drops + 1px ring. */
+  --btn-inner: inset 0 1px 0 rgb(255 255 255 / 0.14);
+  --btn-drop: 0 1px 1px rgb(0 0 0 / 0.16), 0 2px 3px -1px rgb(34 42 53 / 0.2);
+  --btn-ring: color-mix(in oklab, var(--accent-base) 100%, black 8%);
+  --btn2-inner: inset 0 1px 0 rgb(255 255 255 / 0.9);
+  --btn2-drop: 0 1px 1px rgb(0 0 0 / 0.04), 0 2px 3px -1px rgb(34 42 53 / 0.08);
+  --btn2-ring: rgb(0 0 0 / 0.1);
+  --btn2-bg: #ffffff;
+  --btn2-bg-hover: #f9f9fa;
+
+  /* notch-toast reads these */
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --muted-foreground: var(--muted);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #0e0e10;
+  --surface: #151517;
+  --surface-2: #1b1b1e;
+  --surface-3: #232327;
+  --ink: #f2f2f4;
+  --ink-2: #c4c4cb;
+  --muted: #8d8e99;
+  --faint: #5f606b;
+  --line: #242428;
+  --line-2: #303036;
+  --line-3: #46464f;
+
+  /* A dark accent would vanish on dark surfaces: lift it toward white. */
+  --accent: color-mix(in oklab, var(--accent-base) 22%, #ececf0);
+  --accent-hover: color-mix(in oklab, var(--accent-base) 12%, #ffffff);
+  --accent-ink: #121214;
+  --accent-soft: color-mix(in oklab, var(--accent-base) 30%, #1b1b1e);
+  --accent-soft-ink: color-mix(in oklab, var(--accent-base) 25%, #f2f2f4);
+
+  --ok: #3fbf68;
+  --ok-soft: #11301d;
+  --ok-ink: #86d6a0;
+  --warn: #e3ad3a;
+  --warn-soft: #32270b;
+  --warn-ink: #f0c96c;
+  --danger: #ec5d5e;
+  --danger-soft: #3b1613;
+  --danger-ink: #f5a096;
+  --info: #7b9bff;
+  --info-soft: #162042;
+  --info-ink: #aec2ff;
+
+  --shadow-xs: 0 1px 1px rgb(0 0 0 / 0.3);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-raised: 0 2px 6px rgb(0 0 0 / 0.4), 0 12px 32px -12px rgb(0 0 0 / 0.7);
+  --shadow-popup: 0 4px 10px rgb(0 0 0 / 0.4), 0 20px 48px -16px rgb(0 0 0 / 0.8);
+  --shadow-dialog: 0 8px 20px rgb(0 0 0 / 0.5), 0 40px 80px -24px rgb(0 0 0 / 0.9);
+  --backdrop: rgb(0 0 0 / 0.5);
+
+  --btn-inner: inset 0 1px 0 rgb(255 255 255 / 0.5);
+  --btn-drop: 0 1px 1px rgb(0 0 0 / 0.4), 0 2px 4px -1px rgb(0 0 0 / 0.4);
+  --btn-ring: rgb(255 255 255 / 0.1);
+  --btn2-inner: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  --btn2-drop: 0 1px 1px rgb(0 0 0 / 0.3), 0 2px 4px -1px rgb(0 0 0 / 0.4);
+  --btn2-ring: rgb(255 255 255 / 0.1);
+  --btn2-bg: #1f1f23;
+  --btn2-bg-hover: #27272c;
+}

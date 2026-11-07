@@ -1,0 +1,86 @@
+/* One entry point: foundations → kit → layout. Components never import CSS. */
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "overlayscrollbars/overlayscrollbars.css";
+/* Explicit source: scanning never depends on .gitignore files above the project. */
+@import "tailwindcss" source(none);
+@import "./tokens.css";
+@import "./kit.css" layer(components);
+@import "./layout.css";
+
+@source "../";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-code);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-line-3: var(--line-3);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-ink: var(--accent-soft-ink);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-ok-ink: var(--ok-ink);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-ink: var(--warn-ink);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-ink: var(--danger-ink);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-ink: var(--info-ink);
+}
+
+@layer base {
+  html {
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 16px;
+    font-feature-settings: "cv11", "ss01", "ss03";
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    min-height: 100dvh;
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    transition: background-color var(--dur) ease, color var(--dur) ease;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 18%, transparent);
+  }
+  :focus-visible {
+    outline: none;
+  }
+  code,
+  kbd,
+  pre,
+  .mono {
+    font-family: var(--font-code);
+    font-feature-settings: normal;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+}
