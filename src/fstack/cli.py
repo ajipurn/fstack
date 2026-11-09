@@ -938,6 +938,7 @@ def main(argv: list[str] | None = None) -> int:
     add = tsub.add_parser("add", help="make a template from an existing repo (a folder or a git URL)")
     add.add_argument("name", help="the template's name: `fstack new <project> -t <name>`")
     add.add_argument("--from", dest="source", required=True, metavar="PATH|URL", help="the repo (committed files only)")
+    add.add_argument("--ref", help="branch, tag or commit to take (default: the latest commit)")
     add.add_argument("--dry-run", action="store_true", help="show what would be written, write nothing")
     add.add_argument("--description", help="shown by `fstack doctor` (default: where it came from)")
     add.add_argument("--source-name", help="the project's name as the source spells it (default: detected)")

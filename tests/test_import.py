@@ -107,3 +107,28 @@ def test_refusals(repo, tmp_path, capsys):
 
     assert cli.main(["template", "add", "dry", "--from", str(project), "--dry-run"]) == 0
     assert not (repo / "templates/dry").exists()
+
+
+def test_takes_a_branch_tag_or_commit(repo, tmp_path, capsys):
+    source = tmp_path / "acme-board"
+    write(source, {"README.md": "# Acme Board\n\none\n"})
+    git(source.parent, "init", "-q", "-b", "main", str(source))
+    first = commit(source, "one")
+    git(source, "tag", "v1")
+    git(source, "branch", "old")
+    commit(source, "two", {"README.md": "# Acme Board\n\ntwo\n"})
+
+    cases = {"tag": ("v1", str(source)), "branch": ("old", source.as_uri()), "sha": (first, source.as_uri())}
+    for name, (ref, where) in cases.items():
+        assert cli.main(["template", "add", name, "--from", where, "--ref", ref]) == 0, name
+        assert (repo / "templates" / name / "README.md").read_text() == "# Fstack Starter\n\none\n", name
+    assert f"@ {first[:7]}" in (repo / "templates/sha" / cli.MANIFEST).read_text()
+
+    assert cli.main(["template", "add", "latest", "--from", source.as_uri()]) == 0
+    assert (repo / "templates/latest/README.md").read_text() == "# Fstack Starter\n\ntwo\n"
+
+    capsys.readouterr()
+    assert cli.main(["template", "add", "nope", "--from", str(source), "--ref", "missing"]) == 1
+    assert "no branch, tag or commit 'missing'" in capsys.readouterr().err
+    assert cli.main(["template", "add", "nope", "--from", str(source), "--ref=--upload-pack=x"]) == 1
+    assert "isn't a branch, tag or commit" in capsys.readouterr().err

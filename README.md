@@ -133,11 +133,12 @@ reads the answers back from the files, then writes `.fstack.json`. Without that 
 fstack template add range --from ~/Developer/Projects/range-market-assessment --dry-run
 fstack template add range --from ~/Developer/Projects/range-market-assessment
 fstack template add board --from git@github.com:acme/acme-board.git
+fstack template add board-v1 --from https://github.com/acme/acme-board.git --ref v1.2
 fstack new pelni-review -t range         # then commit templates/range in fstack
 ```
 
-It is `fstack new` in reverse: the repo's committed files (never `.env`, never
-`.fstack.json`) go to `templates/<name>/` with the project's own name (`range-market-assessment`,
+It is `fstack new` in reverse: the repo's committed files (its latest commit, or the branch,
+tag or commit `--ref` names; never `.env`, never `.fstack.json`) go to `templates/<name>/` with the project's own name (`range-market-assessment`,
 `range_market_assessment`, “Range Market Assessment”), ports and accent put back to the
 starter tokens, so `fstack new -t range` renames them for each new project. The answers
 come from the repo's `.fstack.json`, else from its files when fstack made it, else they're
@@ -150,7 +151,8 @@ read from the repo (`uv sync`, `{pm} install`, `go mod download`, `cargo fetch`)
 It reports, and leaves to you: what looks like a secret, other spellings of the name
 (`RangeMarketAssessment`), paths with the name in them (fstack never renames paths) and
 starter tokens the repo already had. It works in an fstack checkout (editable install);
-commit and push the new template so the team gets it. Names too common to replace safely
+commit and push the new template so the team gets it. A git URL is cloned with your own git
+credentials (`gh auth login` or an SSH key), so private repos work too. Names too common to replace safely
 (`app`, `api`, `web`…) are refused.
 
 ## What the default template gives

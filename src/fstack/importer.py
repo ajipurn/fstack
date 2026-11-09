@@ -45,28 +45,47 @@ class Found:
 # ── reading the source ───────────────────────────────────────────────────────
 
 
-def fetch(source: str, tmp: Path) -> tuple[Path, str, str]:
-    """The source's committed files, unpacked: (folder, label, commit)."""
+def _commit(repo: Path, rev: str, source: str) -> str:
+    try:
+        return cli._git(repo, "rev-parse", "--verify", "--quiet", f"{rev}^{{commit}}")
+    except FstackError as exc:
+        raise FstackError(f"{source} has no branch, tag or commit {rev!r}") from exc
+
+
+def fetch(source: str, tmp: Path, ref: str | None = None) -> tuple[Path, str, str]:
+    """The source's committed files at `ref` (default: its latest commit), unpacked:
+    (folder, label, commit)."""
+    if ref is not None and not cli.REV.fullmatch(ref):
+        raise FstackError(f"--ref {ref!r} isn't a branch, tag or commit")
+    rev = ref or "HEAD"
     path = Path(source).expanduser()
     if path.is_dir():
         repo = path.resolve()
         try:
-            commit = cli._git(repo, "rev-parse", "HEAD")
+            cli._git(repo, "rev-parse", "HEAD")
         except FstackError as exc:
             raise FstackError(f"{source} isn't a git repository with a commit: templates come from committed files") from exc
-        if cli._git(repo, "status", "--porcelain", "--", "."):
+        if ref is None and cli._git(repo, "status", "--porcelain", "--", "."):
             warn(f"{source} has uncommitted changes: only what's committed goes into the template")
         label = repo.name
     elif re.match(r"(https?|ssh|git|file)://|[\w.-]+@[\w.-]+:", source):
         repo = tmp / "clone"
-        step(f"cloning {source}")
-        cli._git(tmp, "clone", "--quiet", "--depth", "1", source, str(repo))
-        commit = cli._git(repo, "rev-parse", "HEAD")
+        step(f"cloning {source}" + (f" at {ref}" if ref else ""))
+        try:  # a branch or tag needs only its last commit…
+            branch = ["--branch", ref] if ref else []
+            cli._git(tmp, "clone", "--quiet", "--depth", "1", *branch, source, str(repo))
+            rev = "HEAD"
+        except FstackError:
+            if ref is None:
+                raise
+            # …a commit needs the history that has it.
+            cli._git(tmp, "clone", "--quiet", "--no-checkout", source, str(repo))
         label = re.sub(r"\.git$", "", re.split(r"[/:]", source.rstrip("/"))[-1])
     else:
         raise FstackError(f"{source} is neither a folder nor a git URL")
+    commit = _commit(repo, rev, source)
     files = tmp / "files"
-    if not cli.extract(repo, "HEAD", files):  # run in `repo`: that folder's committed files
+    if not cli.extract(repo, commit, files):  # run in `repo`: that folder's committed files
         raise FstackError(f"couldn't read {source}'s committed files (git archive failed)")
     return files, label, commit
 
@@ -348,11 +367,12 @@ def add(args: argparse.Namespace) -> int:
         raise FstackError(f"{dest} already exists: pick another name, or remove it first")
 
     with tempfile.TemporaryDirectory(prefix="fstack-import-") as tmp:
-        root, label, commit = fetch(args.source, Path(tmp))
+        root, label, commit = fetch(args.source, Path(tmp), args.ref)
         tree, skipped = collect(root)
         if not tree:
             raise FstackError(f"{args.source} has no committed files")
         found = detect(root, tree, label, args)
+    label = f"{label} ({args.ref})" if args.ref else label
     a = found.answers
     secrets = _lines(tree, SECRET) + _lines(tree, SECRET_SETTING, SETTINGS_FILE)
     already = _lines(tree, re.compile("|".join(re.escape(STARTER[k]) for k in ("slug", "snake", "title"))))
