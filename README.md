@@ -27,9 +27,15 @@ The repo is private: ask for read access first (a collaborator with `pull` is en
    writes it into `backend/.env`: `export DB_ROOT_PASSWORD='…'`. Without it, `fstack new`
    asks (Enter = `root`).
 
-Update with `uv tool upgrade fstack`, then run `fstack update` in a project to bring the
-template's changes into it (see [Update a project](#update-a-project)). To stay on a known
-release, install a git tag instead: `git+https://github.com/ajipurn/fstack@<tag>`.
+Update with `uv tool upgrade fstack` (the latest on `main`), read what changed in
+[CHANGELOG.md](CHANGELOG.md), then run `fstack update` in a project to bring the template's
+changes into it (see [Update a project](#update-a-project)). To stay on a release, install
+its tag instead, and again for the next one (`uv tool upgrade` never moves a pinned tag):
+
+```bash
+uv tool install --force git+https://github.com/ajipurn/fstack@v0.2.0
+fstack --version
+```
 
 ### Working on fstack
 
@@ -112,7 +118,7 @@ ahead and notes it in `.fstack.json`. A project always follows its own template:
 the project got it, so another machine's bun version never shows up as a change:
 
 ```json
-{ "fstack": "0.1.0", "commit": "<fstack git sha>", "template": "default",
+{ "fstack": "0.2.0", "commit": "<fstack git sha>", "template": "default",
   "name": "talent-review", "title": "Talent Review", "api_port": 8410, "web_port": 5510,
   "accent": "#2f3037", "pm": "bun", "pm_version": "1.4.4" }
 ```
@@ -189,6 +195,22 @@ credentials (`gh auth login` or an SSH key), so private repos work too. Names to
 **Ops**: Makefile, `make db-up` on Apple `container` (one shared `mysql`, a database per
 project, created by `make seed`) or docker compose MySQL 8.4, Dockerfiles (API + nginx SPA), GitHub Actions,
 `.claude/launch.json`, AGENTS.md/CLAUDE.md conventions.
+
+## Releasing
+
+Versions are `vX.Y.Z` tags on `main` ([SemVer](https://semver.org); see the top of
+[CHANGELOG.md](CHANGELOG.md) for what bumps what). The version is set in one place,
+`src/fstack/__init__.py`.
+
+1. On the branch: set `__version__`, and turn CHANGELOG's “unreleased” into the date. List
+   template changes under **Template**: they are what `fstack update` brings into projects
+   (call out migrations and new dependencies).
+2. Merge into `main` with a merge commit, never squash or rebase: projects record the fstack
+   commit they came from in `.fstack.json`, and `fstack update` needs it in `main`'s history.
+3. Tag and push: `git tag -a v0.2.0 -m "fstack 0.2.0" && git push origin main v0.2.0`.
+
+Versions are for people (what changed, what to pin, `fstack update --from v0.1.0`);
+`fstack update` itself goes by commits, so a project made between releases updates fine.
 
 ## Working on the templates
 
