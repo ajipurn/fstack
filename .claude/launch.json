@@ -4,21 +4,13 @@
     {
       "name": "template-api",
       "runtimeExecutable": "make",
-      "runtimeArgs": [
-        "-C",
-        "template",
-        "api"
-      ],
+      "runtimeArgs": ["-C", "templates/default", "api"],
       "port": 8710
     },
     {
       "name": "template-web",
       "runtimeExecutable": "make",
-      "runtimeArgs": [
-        "-C",
-        "template",
-        "web"
-      ],
+      "runtimeArgs": ["-C", "templates/default", "web"],
       "port": 5710
     }
   ]
