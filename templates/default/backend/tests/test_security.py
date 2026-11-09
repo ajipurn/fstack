@@ -4,12 +4,14 @@ import base64
 import secrets
 
 import httpx
+import httpx2
 import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings, get_settings
 from app.db.session import transaction
 from app.llm import backends
+from app.llm.client import CallFailed, complete
 from app.services import auth
 from tests.conftest import ACCESS_KEY, add_provider
 
@@ -174,6 +176,82 @@ def test_moving_a_provider_needs_the_key_again(client: TestClient) -> None:
     assert client.put(f"/api/providers/{provider['id']}", json=body).status_code == 422
     body["api_key"] = "sk-new-key-0987654321"
     assert client.put(f"/api/providers/{provider['id']}", json=body).status_code == 200
+
+
+# ── a provider without a key never borrows the host's env key ───────────────
+
+HOST_KEY = "host-env-key-0123456789abcdef"
+
+
+def keyless(kind: str, **overrides: object) -> backends.ModelSpec:
+    values: dict = {
+        "kind": kind,
+        "protocol": "chat",
+        "model": "m",
+        "base_url": "",
+        "region": "",
+        "secret": {},
+        "temperature": None,
+        "max_tokens": None,
+        "timeout": 5.0,
+        **overrides,
+    }
+    return backends.ModelSpec(**values)
+
+
+def test_keyless_anthropic_is_refused_locally_and_sends_nothing(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", HOST_KEY)
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", HOST_KEY)
+    seen: list[httpx2.Request] = []
+
+    def handle_request(self: httpx2.HTTPTransport, request: httpx2.Request) -> httpx2.Response:
+        seen.append(request)
+        return httpx2.Response(401, json={"type": "error", "error": {"type": "auth"}})
+
+    # Every request the anthropic SDK sends goes through this transport.
+    monkeypatch.setattr(httpx2.HTTPTransport, "handle_request", handle_request)
+    body = {"name": "x", "kind": "anthropic", "base_url": "https://attacker.example"}
+    refused = client.post("/api/providers/probe", json={**body, "api_key": ""})
+    assert refused.status_code == 200 and refused.json()["ok"] is False
+    assert "Enter an API key" in refused.json()["message"]
+    with pytest.raises(CallFailed, match="Enter an API key") as failed:
+        complete(keyless("anthropic", base_url="https://attacker.example"), "", "hi")
+    assert not failed.value.retryable
+    assert seen == []
+
+    # A key the user typed is still the one that is sent.
+    client.post("/api/providers/probe", json={**body, "api_key": "sk-ant-typed-0123456789"})
+    assert len(seen) == 1 and str(seen[0].url).startswith("https://attacker.example/")
+    headers = list(seen[0].headers.values())
+    assert any("sk-ant-typed-0123456789" in value for value in headers)
+    assert all(HOST_KEY not in value for value in headers)
+
+
+def test_keyless_google_is_refused_before_any_client_exists(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from google import genai
+
+    monkeypatch.setenv("GOOGLE_API_KEY", HOST_KEY)
+    monkeypatch.setenv("GEMINI_API_KEY", HOST_KEY)
+    built: list[dict] = []
+    real = genai.Client
+
+    def recording(*args: object, **kwargs: object) -> object:
+        built.append(kwargs)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(genai, "Client", recording)  # llmfy and backends both build through it
+    with pytest.raises(ValueError, match="Enter an API key"):
+        backends.build_model(keyless("google"))
+    with pytest.raises(ValueError, match="Enter an API key"):
+        backends.model_ids(keyless("google"))
+    assert built == []
+
+    backends.build_model(keyless("google", secret={"api_key": "AIza-typed-0123456789"}))
+    assert built and all(kwargs["api_key"] == "AIza-typed-0123456789" for kwargs in built)
 
 
 # ── production ───────────────────────────────────────────────────────────────
