@@ -325,7 +325,10 @@ def render_tree(src: Path, answers: Answers, only: frozenset[str] | None = None)
 
 
 def write_tree(tree: merge.Tree, dest: Path) -> None:
-    merge.apply([merge.Change(rel, "added", e.data, e.executable) for rel, e in tree.items()], dest)
+    try:
+        merge.apply([merge.Change(rel, "added", e.data, e.executable) for rel, e in tree.items()], dest)
+    except RuntimeError as exc:
+        raise FstackError(str(exc)) from exc
 
 
 def snapshot(root: Path) -> merge.Tree:
@@ -364,7 +367,10 @@ def write_env(dest: Path, database_url: str | None, names: Names, password: str)
         database_url = f"mysql+pymysql://root:{encoded}@127.0.0.1:3306/{names.snake}"
     line = f"APP_DATABASE_URL={database_url}"
     text = re.sub(r"^APP_DATABASE_URL=.*$", lambda _: line, text, flags=re.M)
-    env.write_text(text, encoding="utf-8")
+    # Created 0600, not 0666 & ~umask and narrowed after: no window where others can read the secrets.
+    fd = os.open(env, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_BINARY", 0), 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(text)
     env.chmod(0o600)
     return True
 
@@ -545,7 +551,10 @@ def checkout_template(gitdir: Path, rev: str, name: str, dest: Path) -> Path:
 
 def write_meta(dest: Path, answers: Answers, template: Template, commit: str | None, dirty: bool = False) -> None:
     text = json.dumps(answers.to_meta(template, commit, dirty), indent=2) + "\n"
-    (dest / META).write_text(text, encoding="utf-8")
+    try:
+        merge.write(dest, META, text.encode("utf-8"))
+    except RuntimeError as exc:
+        raise FstackError(str(exc)) from exc
 
 
 def _summary(template: Template, answers: Answers) -> str:
@@ -695,7 +704,11 @@ def infer_answers(project: Path) -> Answers:
 
 
 def read_meta(root: Path) -> dict[str, object] | None:
-    return _json_object((root / META).read_text(encoding="utf-8"), META) if (root / META).exists() else None
+    try:
+        path = merge.resolve(root, META)
+    except RuntimeError as exc:
+        raise FstackError(str(exc)) from exc
+    return _json_object(path.read_text(encoding="utf-8"), META) if path.exists() else None
 
 
 def project_template(meta: dict[str, object] | None) -> str:
@@ -816,7 +829,10 @@ def update(root: Path, *, dry_run: bool = False, from_rev: str | None = None, al
         print(f"\n  {_c('2', 'Dry run: nothing written.')}\n")
         return 1 if conflicted else 0
 
-    merge.apply(changes, root)
+    try:
+        merge.apply(changes, root)
+    except RuntimeError as exc:
+        raise FstackError(str(exc)) from exc
     write_meta(root, answers, template, source.commit, dirty)
     if source.commit is None:
         warn("can't tell which fstack commit this is: the next `fstack update` will need --from <rev>")

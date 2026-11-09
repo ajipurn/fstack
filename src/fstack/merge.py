@@ -9,6 +9,7 @@ show up; files the project has but git doesn't track are never touched.
 from __future__ import annotations
 
 import difflib
+import os
 import subprocess
 import tempfile
 from collections.abc import Collection
@@ -152,24 +153,62 @@ def plan(
     return changes
 
 
+def resolve(root: Path, rel: str, *, follow: bool = True) -> Path:
+    """Where `rel` really is under `root`, symlinks resolved (all but the last component
+    when not `follow`ing, so it names the link itself). A project's symlinks may come from
+    a cloned repo: refuse one that leads outside `root`, or into its .git."""
+    path = root / rel
+    real = Path(os.path.realpath(path)) if follow else Path(os.path.realpath(path.parent), path.name)
+    top = root.resolve()
+    if top not in real.parents or real.name in ("", ".", "..") or _in_git_dir(top, real):
+        raise RuntimeError(f"{rel} leads outside the project (to {real}): refusing to follow it")
+    return real
+
+
+def _in_git_dir(top: Path, real: Path) -> bool:
+    first = top / real.relative_to(top).parts[0]
+    try:
+        return os.path.samestat(first.lstat(), (top / ".git").lstat())
+    except OSError:
+        return False
+
+
+def write(root: Path, rel: str, data: bytes, executable: bool | None = None) -> None:
+    """Write `rel` under `root`, through symlinks only when they stay in the project.
+    `executable` sets or clears the x bits; None leaves the mode as it is."""
+    target = resolve(root, rel)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o666)
+    with open(fd, "wb") as f:
+        f.write(data)
+        if executable is not None:
+            mode = os.fstat(fd).st_mode
+            os.fchmod(fd, mode | 0o111 if executable else mode & ~0o111)
+
+
 def _remove(root: Path, rel: str) -> None:
-    target = root / rel
+    target = resolve(root, rel, follow=False)
     target.unlink(missing_ok=True)
+    top = root.resolve()
     parent = target.parent
-    while parent != root and parent.is_dir() and not any(parent.iterdir()):
+    while parent != top and parent.is_dir() and not any(parent.iterdir()):
         parent.rmdir()
         parent = parent.parent
 
 
 def apply(changes: list[Change], root: Path) -> None:
+    # Check every path first, so a refusal leaves the project as it was.
+    for change in changes:
+        if change.kind == "removed":
+            resolve(root, change.path, follow=False)
+        elif change.data is not None:
+            resolve(root, change.path)
+            if change.old:
+                resolve(root, change.old, follow=False)
     for change in changes:
         if change.kind == "removed":
             _remove(root, change.path)
         elif change.data is not None:
-            target = root / change.path
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(change.data)
-            mode = target.stat().st_mode
-            target.chmod(mode | 0o111 if change.executable else mode & ~0o111)
+            write(root, change.path, change.data, change.executable)
             if change.old:
                 _remove(root, change.old)

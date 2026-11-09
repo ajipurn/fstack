@@ -2,6 +2,8 @@
 then template changes merged back with `fstack update`."""
 
 import json
+import shutil
+from pathlib import Path
 
 import pytest
 from helpers import (
@@ -362,3 +364,72 @@ def test_doctor_lists_the_templates(repo, capsys):
     out = capsys.readouterr().out
     assert "default      API and dashboard" in out
     assert "lite         API only (uncommitted changes)" in out
+
+
+@pytest.mark.parametrize("case", ["file", "folder", "meta", "meta-elsewhere"])
+def test_refuses_symlinks_that_lead_outside_the_project(repo, tmp_path, capsys, case):
+    # A cloned project can point a tracked path at any file of whoever runs the update.
+    project = new_project(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "bashrc").write_text("export SAFE=1\n")
+    (outside / "settings.json").write_text(json.dumps(meta(project)))
+    if case == "file":
+        (project / "Makefile").unlink()
+        (project / "Makefile").symlink_to(outside / "bashrc")
+    elif case == "folder":
+        shutil.rmtree(project / "scripts")
+        (project / "scripts").symlink_to(outside)
+    else:
+        (project / ".fstack.json").unlink()
+        (project / ".fstack.json").symlink_to(outside / ("created" if case == "meta" else "settings.json"))
+    commit(project, "point outside")
+    template_commit(repo, {"Makefile": TEMPLATE["Makefile"] + "# v2\n", "scripts/new-tool.sh": "#!/bin/sh\n"})
+    before = {p.name: p.read_text() for p in outside.iterdir()}
+
+    assert cli.main(["update", str(project)]) == 1
+    assert "leads outside the project" in capsys.readouterr().err
+    assert {p.name: p.read_text() for p in outside.iterdir()} == before
+    assert git(project, "status", "--porcelain") == ""  # nothing written in the project either
+
+
+def test_follows_symlinks_inside_the_project(repo, tmp_path):
+    project = new_project(tmp_path)
+    (project / "docs").mkdir()
+    (project / "README.md").rename(project / "docs" / "README.md")
+    (project / "README.md").symlink_to(Path("docs", "README.md"))
+    (project / "scripts").rename(project / "tools")
+    (project / "scripts").symlink_to("tools")
+    (project / ".fstack.json").rename(project / "docs" / "fstack.json")
+    (project / ".fstack.json").symlink_to(Path("docs", "fstack.json"))
+    commit(project, "move things, keep links")
+    readme = TEMPLATE["README.md"] + "\nmore\n"
+    head = template_commit(repo, {"README.md": readme, "scripts/new-tool.sh": "#!/bin/sh\necho fstack-starter\n"})
+
+    assert cli.main(["update", str(project)]) == 0
+    assert all((project / p).is_symlink() for p in ["README.md", "scripts", ".fstack.json"])
+    assert (project / "docs/README.md").read_text() == rendered(readme)
+    assert (project / "tools/new-tool.sh").read_text() == "#!/bin/sh\necho demo-app\n"
+    assert json.loads((project / "docs/fstack.json").read_text())["commit"] == head
+
+
+def test_new_force_follows_symlinks_inside_the_folder(repo, tmp_path):
+    dest = tmp_path / "demo"
+    (dest / "docs").mkdir(parents=True)
+    (dest / "README.md").symlink_to(Path("docs", "README.md"))
+
+    assert cli.main(["new", "Demo App", "--dir", str(dest), "--no-install", "--no-git", "--force"]) == 0
+    assert (dest / "README.md").is_symlink()
+    assert (dest / "docs/README.md").read_text().startswith("# Demo App\n")
+
+
+@pytest.mark.parametrize("link", ["Makefile", ".fstack.json"])
+def test_new_force_refuses_symlinks_that_lead_outside_the_folder(repo, tmp_path, capsys, link):
+    dest, outside = tmp_path / "demo", tmp_path / "outside"
+    dest.mkdir()
+    outside.mkdir()
+    (dest / link).symlink_to(outside / "created")
+
+    assert cli.main(["new", "Demo App", "--dir", str(dest), "--no-install", "--no-git", "--force"]) == 1
+    assert "leads outside the project" in capsys.readouterr().err
+    assert not any(outside.iterdir())

@@ -94,14 +94,23 @@ def _openai(spec: ModelSpec) -> BaseAIModel:
     return model
 
 
+def _required_key(spec: ModelSpec) -> str:
+    """The provider's own key. Never None: the SDKs would fall back to the host's env key."""
+    key = spec.secret.get("api_key")
+    if not key:
+        raise ValueError("Enter an API key for this provider.")
+    return key
+
+
 def _anthropic(spec: ModelSpec) -> BaseAIModel:
+    key = _required_key(spec)
     model: Any = llmfy.AnthropicMessagesModel(
         model=spec.model,
         # The Messages API requires max_tokens; runs fill in the model's output limit.
         config=llmfy.AnthropicMessagesConfig(
             temperature=spec.temperature, max_tokens=spec.max_tokens or 4096
         ),
-        api_key=spec.secret.get("api_key"),
+        api_key=key,
         base_url=spec.base_url or None,
     )
     model.client = model.client.with_options(timeout=spec.timeout, max_retries=0)
@@ -149,15 +158,14 @@ def _google(spec: ModelSpec) -> BaseAIModel:
     from google import genai
     from google.genai import types
 
+    key = _required_key(spec)
     config = llmfy.GoogleAIGenerateConfig(max_tokens=spec.max_tokens)
     # llmfy types temperature as float (default 0.7); None reaches the SDK as
     # "unset", which leaves the model's own default in place.
     config.temperature = spec.temperature  # type: ignore[assignment]
-    model: Any = llmfy.GoogleAIGenerateModel(
-        model=spec.model, config=config, api_key=spec.secret.get("api_key")
-    )
+    model: Any = llmfy.GoogleAIGenerateModel(model=spec.model, config=config, api_key=key)
     model.client = genai.Client(
-        api_key=spec.secret.get("api_key"),
+        api_key=key,
         http_options=types.HttpOptions(timeout=int(spec.timeout * 1000)),
     )
     return model
