@@ -7,7 +7,10 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-_FENCE = re.compile(r"^\s*```(?:json)?\s*\n(.*?)\n?```\s*$", re.S | re.I)
+# The atomic group takes the opening line up to its last newline and never backtracks
+# into it: retrying an earlier newline cannot match when the last one fails, and doing
+# so made a reply of ``` plus many newlines cost quadratic time.
+_FENCE = re.compile(r"^\s*```(?:json)?(?>\s*\n)(.*?)\n?```\s*$", re.S | re.I)
 
 
 class OutputInvalid(ValueError):
