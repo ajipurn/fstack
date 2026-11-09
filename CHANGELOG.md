@@ -5,7 +5,7 @@ or template changes a project has to act on (a migration, a new dependency, a
 `.fstack.json` change), and a patch release fixes things. **Template** lists what
 `fstack update` brings into projects made from that template.
 
-## 0.2.0 — unreleased
+## 0.2.0 — 2026-11-09
 
 ### fstack
 
