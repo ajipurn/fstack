@@ -1,3 +1,8 @@
+import os
+from pathlib import Path
+
+import pytest
+
 from fstack.merge import Change, Entry, apply, plan
 
 LABELS = ("project", "old", "new")
@@ -119,3 +124,96 @@ def test_tiny_or_unrelated_files_are_not_moves():
 def test_move_of_a_file_deleted_here_is_skipped():
     [change] = plan({"old": e(TEXT)}, {"new": e(TEXT + "more\n")}, {}, LABELS)
     assert (change.path, change.kind) == ("new", "skipped")
+
+
+@pytest.fixture
+def linked(tmp_path) -> Path:
+    """A project whose symlinks lead outside it (and into its .git), next to `outside/`."""
+    root, outside = tmp_path / "project", tmp_path / "outside"
+    (outside / "deep").mkdir(parents=True)
+    (outside / "deep" / "f").write_text("keep")
+    (outside / "target").write_text("keep")
+    (root / ".git" / "hooks").mkdir(parents=True)
+    (root / "Makefile").symlink_to(outside / "target")
+    (root / "dangling").symlink_to(outside / "created")
+    (root / "old").symlink_to(outside)
+    (root / "scripts").symlink_to(outside / "deep")
+    (root / "hooks").symlink_to(Path(".git", "hooks"))
+    return root
+
+
+def _files(top: Path) -> dict[str, str]:
+    """Every regular file under `top` (symlinks not followed) and what it holds."""
+    found = {}
+    for where, _, names in os.walk(top):
+        for path in (Path(where, name) for name in names):
+            if not path.is_symlink():
+                found[str(path.relative_to(top))] = path.read_text()
+    return found
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        Change("Makefile", "updated", b"evil"),  # a symlinked file
+        Change("dangling", "added", b"evil"),  # …that doesn't exist yet
+        Change("scripts/new.sh", "added", b"evil"),  # in a symlinked folder
+        Change("hooks/post-checkout", "added", b"evil"),  # into .git
+        Change("old/deep/f", "removed"),  # removed through a symlinked folder
+        Change("moved", "renamed", b"x", old="old/deep/f"),
+        Change("../escaped", "added", b"evil"),
+        Change("ABS", "added", b"evil"),
+        Change("/ABS", "added", b"evil"),  # //…: still absolute
+    ],
+    ids=lambda c: c.path,
+)
+def test_apply_refuses_paths_that_leave_the_project(linked, tmp_path, change):
+    if change.path.endswith("ABS"):
+        change = Change(change.path.replace("ABS", str(tmp_path / "escaped")), change.kind, change.data)
+    before = _files(tmp_path)
+    with pytest.raises(RuntimeError, match="leads outside the project"):
+        apply([Change("first", "added", b"x"), change], linked)
+    assert _files(tmp_path) == before  # nothing written anywhere, not even `first`
+    assert (linked / "old").is_symlink() and (linked / "scripts").is_symlink()
+
+
+def test_apply_follows_symlinks_inside_the_project(tmp_path):
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "README.md").write_text("old")
+    (tmp_path / "README.md").symlink_to(Path("docs", "README.md"))
+    (tmp_path / "AGENTS.md").write_text("old")
+    (tmp_path / "CLAUDE.md").symlink_to(tmp_path / "AGENTS.md")  # absolute, still inside
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "scripts").symlink_to("tools")
+    apply(
+        [
+            Change("README.md", "updated", b"new"),
+            Change("CLAUDE.md", "updated", b"agents"),
+            Change("scripts/new.sh", "added", b"#!/bin/sh\n", executable=True),
+        ],
+        tmp_path,
+    )
+    assert (tmp_path / "docs" / "README.md").read_text() == "new" and (tmp_path / "README.md").is_symlink()
+    assert (tmp_path / "AGENTS.md").read_text() == "agents" and (tmp_path / "CLAUDE.md").is_symlink()
+    assert (tmp_path / "tools" / "new.sh").stat().st_mode & 0o111 and (tmp_path / "scripts").is_symlink()
+
+
+def test_removing_a_symlink_removes_the_link_not_its_target(linked, tmp_path):
+    (linked / "tools" / "deep").mkdir(parents=True)
+    (linked / "tools" / "deep" / "old.sh").write_text("x")
+    (linked / "tools" / "keep.sh").write_text("x")
+    (linked / "bin").symlink_to("tools")
+    before = _files(tmp_path)
+    apply([Change("Makefile", "removed"), Change("bin/deep/old.sh", "removed")], linked)
+    assert not (linked / "Makefile").is_symlink()
+    assert (tmp_path / "outside" / "target").read_text() == "keep"  # the link went, not what it pointed to
+    assert not (linked / "tools" / "deep").exists() and (linked / "tools" / "keep.sh").exists()
+    assert _files(tmp_path) == {k: v for k, v in before.items() if k != "project/tools/deep/old.sh"}
+
+
+def test_cleanup_stops_at_the_project_root(tmp_path):
+    root = tmp_path / "project"
+    (root / "only").mkdir(parents=True)
+    (root / "only" / "f").write_text("x")
+    apply([Change("only/f", "removed")], root)
+    assert root.is_dir() and not any(root.iterdir())
