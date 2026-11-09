@@ -1,0 +1,18 @@
+# What `fstack new` (the default template) needs to know. Never copied into projects.
+description = "FastAPI + llmfy + MySQL API and a React dashboard"
+
+# Answers this template uses (besides the name and title): api_port, web_port, accent, pm.
+answers = ["api_port", "web_port", "accent", "pm"]
+
+# Run after the files are written, in order; {pm} is the chosen package manager.
+install = [
+  { dir = "backend", run = "uv sync --compile-bytecode" },
+  { dir = "frontend", run = "{pm} install" },
+]
+
+# Printed under "Next:"; {api_port}, {web_port}, … are the project's answers.
+next = [
+  ["make db-up", "MySQL via Apple container or Docker (or set APP_DATABASE_URL)"],
+  ["make seed", "schema, prompts, prices; sign in with APP_ACCESS_KEY (backend/.env)"],
+  ["make dev", "api :{api_port} + web :{web_port}"],
+]

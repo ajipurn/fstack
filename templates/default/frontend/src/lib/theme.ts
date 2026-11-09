@@ -31,13 +31,16 @@ export function useTheme(): [Theme, () => void] {
   }, current);
   const toggle = useCallback(() => {
     const next: Theme = current() === "dark" ? "light" : "dark";
-    withTransition(() => applyTheme(next));
+    // A view transition runs its callback later: announce the change once it's applied.
+    withTransition(() => {
+      applyTheme(next);
+      window.dispatchEvent(new Event(EVENT));
+    });
     try {
       localStorage.setItem(KEY, next);
     } catch {
       /* private mode */
     }
-    window.dispatchEvent(new Event(EVENT));
   }, []);
   return [theme, toggle];
 }

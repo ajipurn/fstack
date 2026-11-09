@@ -6,8 +6,7 @@ dist/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
-template/backend/.env
-template/backend/.data/
-template/frontend/node_modules/
+templates/*/backend/.env
+templates/*/backend/.data/
 # Claude Code: share launch.json/settings.json, keep personal settings local
 **/.claude/settings.local.json
