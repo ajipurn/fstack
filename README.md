@@ -1,121 +1,163 @@
 # fstack
 
-Personal scaffolder for new projects. The default template is a **FastAPI + llmfy +
-MySQL** backend and a **React 19 + Vite** dashboard (Clerk-style top navigation), with
-provider-agnostic LLM calls, prompt versioning and cost observability (models.dev) built
-in. Any repo can become another template: `fstack template add` (below).
+fstack starts our new projects from shared templates, and later brings template
+improvements into the projects made from them.
 
-Distilled from `pelni-assessment`, `py-new-assessment-center` (bars-dashboard),
-`cimb-assessment` and `daria`.
+```bash
+fstack new talent-review           # a new project from the default template
+fstack update                      # later, inside it: take what changed in the template
+```
+
+The **default** template is a FastAPI + llmfy + MySQL backend with a React 19 + Vite
+dashboard. LLM calls work with any provider, and prompt versioning and cost tracking are
+built in ([what's in it](#the-default-template)). Any of our repos can become another
+template.
+
+- [Install](#install)
+- [Start a project](#start-a-project)
+- [Update a project](#update-a-project)
+- [Templates](#templates)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](CONTRIBUTING.md): working on fstack and its templates, and releasing
 
 ## Install
 
-### Team
+You need:
 
-The repo is private: ask for read access first (a collaborator with `pull` is enough).
+| Tool | For |
+|---|---|
+| [`uv`](https://docs.astral.sh/uv/) | installing fstack, and the backend |
+| `bun` or `pnpm` | the frontend (`bun` unless you pass `--pm pnpm`) |
+| `git` | fetching fstack, and project history |
+| Apple `container` or Docker | local MySQL (`make db-up`) |
 
-1. Have `uv`, `bun` (or `pnpm`), `git`, and Apple `container` or Docker for MySQL.
-2. Let git reach the private repo: `gh auth login` (or an SSH key on GitHub).
-3. Install, then check the toolchain:
+1. The repo is private, so ask for read access to `ajipurn/fstack` first. Then let git
+   reach it with `gh auth login` (HTTPS) or an SSH key on GitHub.
+2. Install fstack and check your toolchain:
 
    ```bash
    uv tool install git+https://github.com/ajipurn/fstack
    fstack doctor
    ```
 
-4. Export your local MySQL's root password once (e.g. in `~/.zshrc`) so `fstack new`
-   writes it into `backend/.env`: `export DB_ROOT_PASSWORD='…'`. Without it, `fstack new`
-   asks (Enter = `root`).
+   With an SSH key, install from `git+ssh://git@github.com/ajipurn/fstack` instead.
+3. Export your local MySQL root password once, e.g. in `~/.zshrc`:
 
-Update with `uv tool upgrade fstack` (the latest on `main`), read what changed in
-[CHANGELOG.md](CHANGELOG.md), then run `fstack update` in a project to bring the template's
-changes into it (see [Update a project](#update-a-project)). To stay on a release, install
-its tag instead, and again for the next one (`uv tool upgrade` never moves a pinned tag):
+   ```bash
+   export DB_ROOT_PASSWORD='…'
+   ```
+
+   `fstack new` writes it into each project's `backend/.env`. Without it, `fstack new`
+   asks (Enter keeps `root`).
+
+### Upgrade
 
 ```bash
-uv tool install --force git+https://github.com/ajipurn/fstack@v0.2.0
+uv tool upgrade fstack
 fstack --version
 ```
 
-### Working on fstack
+This takes the latest `main`. Read [CHANGELOG.md](CHANGELOG.md) for what changed, then
+[update your projects](#update-a-project).
+
+To stay on a release instead, install its tag:
 
 ```bash
-uv tool install --editable ~/Developer/Projects/fstack
-uv run --group dev pytest          # fstack's own tests (new + update, end to end)
+uv tool install --force git+https://github.com/ajipurn/fstack@v0.2.0
 ```
 
-Editable means template changes apply to the next `fstack new` immediately (files git
-ignores in `templates/` are never copied). `.fstack.json` records fstack's commit, so commit
-template changes before updating projects: `fstack update` refuses when the project's
-template is dirty unless `--allow-dirty`, and `fstack new` notes it (`fstack doctor` shows
-the commit and which templates are dirty).
+`uv tool upgrade` never moves a pinned tag, so take the next release the same way.
 
-## Use
+## Start a project
 
 ```bash
-fstack new talent-review                 # ./talent-review, default template, bun, graphite accent
+fstack new talent-review                          # ./talent-review, default template
 fstack new "Talent Review" --pm pnpm --accent "#ffbe25"
 fstack new crm --database-url "mysql+pymysql://root:secret@127.0.0.1:3306/crm"
-fstack new pelni-review -t range         # from a template added from a repo
-fstack doctor                            # check uv / bun / pnpm / container / docker, list templates
+fstack new pelni-review -t board                  # another template (fstack doctor lists them)
 ```
 
-`fstack new` copies `templates/<name>/`, renames it, picks stable per-project ports (so
-several projects can run side by side), writes `backend/.env` with fresh secrets (templates
-with a backend) and `.fstack.json` (below), installs dependencies (`uv sync`,
-`bun install`/`pnpm install`) and makes the first git commit.
+`fstack new`:
+
+1. Copies the template into `./<name>` and renames it.
+2. Picks ports from the name, so each project gets stable ports and several can run side
+   by side.
+3. Writes `backend/.env` with fresh secrets and your MySQL password, plus
+   [`.fstack.json`](#fstackjson).
+4. Installs the dependencies and makes the first commit.
+5. Prints the next steps. For the default template:
+
+```bash
+cd talent-review
+make db-up     # MySQL via Apple container or Docker
+make seed      # create the database, migrate, load prompts and model prices
+make dev       # API + web; sign in with APP_ACCESS_KEY from backend/.env
+```
 
 | Flag | Default | |
 |---|---|---|
-| `--template`, `-t` | `default` | what to start from; `fstack doctor` lists them |
-| `--pm bun\|pnpm` | `bun` | frontend package manager (Makefile, CI, packageManager) |
-| `--accent #hex` | `#2f3037` | primary button / brand color; text color picked for contrast |
-| `--database-url` | local MySQL as root (`$DB_ROOT_PASSWORD`, else it asks), DB = project name | written to `backend/.env`; `make seed` creates the DB |
-| `--api-port`, `--web-port` | derived from the name | |
+| `--template`, `-t` | `default` | the template to start from |
+| `--dir` | `./<name>` | where to create the project |
 | `--title` | from the name | display name |
-| `--no-install`, `--no-git`, `--force` | | |
+| `--pm bun\|pnpm` | `bun` | frontend package manager (Makefile, CI, `packageManager`) |
+| `--accent #hex` | `#2f3037` (graphite) | brand color; text on it gets a contrasting color |
+| `--database-url` | local MySQL as root; database = project name | `APP_DATABASE_URL` in `backend/.env` |
+| `--api-port`, `--web-port` | derived from the name | |
+| `--no-install` | | skip installing dependencies |
+| `--no-git` | | skip `git init` and the first commit |
+| `--force` | | write into a non-empty directory |
 
-A template asks only what it uses (its `fstack-template.toml` says); other flags are ignored
-with a warning.
+A template asks only what it uses. Flags it doesn't use are ignored with a warning.
 
 ## Update a project
+
+When a template improves, bring the change into a project made from it:
 
 ```bash
 uv tool upgrade fstack
 cd talent-review
 fstack update --dry-run     # what would change
-fstack update               # apply; nothing is committed for you
+fstack update               # apply it; nothing is committed for you
 ```
 
-`fstack update` takes the template the project last got (its own scaffold commit until the
-first update, then the fstack commit in `.fstack.json` rebuilt with the project's answers)
-and the current one, and merges the difference into the project file by file
-(`git merge-file`). The project's own edits stay:
+The project needs a clean working tree, so the update lands as one diff you can review.
+After the update:
 
-| | |
+1. Review `git diff`.
+2. Resolve any conflicts.
+3. Run what fstack prints: `make setup` when dependencies changed, `make migrate` for new
+   migrations.
+4. Commit.
+
+fstack compares the template as the project last got it with the template now. It merges
+the difference into the project file by file and keeps the project's own edits:
+
+| Result | Meaning |
 |---|---|
 | ✓ added / updated / merged / removed | applied cleanly |
-| ✓ renamed | the template moved a file: moved here too, with the project's edits |
-| ✗ conflict | both sides changed the same lines: fix the `<<<<<<<` markers (`git diff --check` lists them) |
-| ! skipped | the template changed a file the project deleted (e.g. the Run page), or one git doesn't track here: left as is |
+| ✓ renamed | the template moved a file; it's moved here too, with the project's edits |
+| ✗ conflict | both sides changed the same lines. Resolve the `<<<<<<<` markers (`git diff --check` lists them). The exit code is 1. |
+| ! skipped | the template changed a file the project deleted or doesn't track: left as it is |
 | ! kept | the template removed a file the project changed: left in place |
 
-Files only the project has are never touched, nor files git doesn't track (ignored local
-files), `.env`, lockfiles, `node_modules` and caches; a file mode changes only when the
-template changed it. It needs a clean working tree, so the update is one diff to review;
-exit code 1 means conflicts. Afterwards it prints what's left: `make setup` when
-dependencies changed, `make migrate` for new migrations (and `alembic merge heads` when
-the project has migrations of its own), then commit.
+fstack never touches:
 
-It refuses when the installed fstack is older than the project's template (a teammate
-updated it with a newer fstack): that would undo template changes, so `uv tool upgrade
-fstack` first. From an editable install it also refuses while the project's template has
-uncommitted changes, since the next update couldn't rebuild them; `--allow-dirty` goes
-ahead and notes it in `.fstack.json`. A project always follows its own template:
-`.fstack.json` names it.
+- files only the project has
+- files git ignores
+- `.env`
+- lockfiles
+- `node_modules` and caches
 
-`.fstack.json` holds what it needs, so commit it. `pm_version` keeps `packageManager` as
-the project got it, so another machine's bun version never shows up as a change:
+If the project has Alembic migrations of its own, `alembic merge heads` may be needed
+after new template migrations; fstack says so.
+
+### `.fstack.json`
+
+`fstack new` writes `.fstack.json`; commit it. It records:
+
+- which template the project follows
+- the fstack commit the project last got
+- the answers the project was made with
 
 ```json
 { "fstack": "0.2.0", "commit": "<fstack git sha>", "template": "default",
@@ -123,111 +165,112 @@ the project got it, so another machine's bun version never shows up as a change:
   "accent": "#2f3037", "pm": "bun", "pm_version": "1.4.4" }
 ```
 
-The old template comes from fstack's git history: the local checkout for an editable
-install (pull it when it lacks a project's commit), otherwise a cached clone of the repo it
-was installed from (`~/.cache/fstack`). Commits from before `templates/` find `default` at
-its old place, `template/`.
+`pm_version` keeps `packageManager` as the project got it, so a teammate's newer bun
+doesn't show up as a change.
 
-**Projects made before `.fstack.json`** (e.g. range-market-assessment): `fstack update`
-uses the project's own `chore: scaffold … from fstack …` commit as the starting point and
-reads the answers back from the files, then writes `.fstack.json`. Without that commit, pass
-`--from <fstack commit or tag>`, or write `.fstack.json` by hand.
+**Projects made before fstack 0.2.0** (e.g. range-market-assessment) have no
+`.fstack.json`. `fstack update` starts from the project's own
+`chore: scaffold … from fstack …` commit, reads the answers back from the files, and writes
+`.fstack.json`. Without that commit, pass `--from <fstack commit or tag>` (e.g.
+`--from v0.1.0`), or write `.fstack.json` by hand like the one above.
 
-## Add a template from a repo
+## Templates
 
-```bash
-fstack template add range --from ~/Developer/Projects/range-market-assessment --dry-run
-fstack template add range --from ~/Developer/Projects/range-market-assessment
-fstack template add board --from git@github.com:acme/acme-board.git
-fstack template add board-v1 --from https://github.com/acme/acme-board.git --ref v1.2
-fstack new pelni-review -t range         # then commit templates/range in fstack
-```
+`fstack doctor` lists the templates your fstack has, and `fstack new -t <name>` uses one.
+A project always updates from its own template.
 
-It is `fstack new` in reverse: the repo's committed files (its latest commit, or the branch,
-tag or commit `--ref` names; never `.env`, never `.fstack.json`) go to `templates/<name>/` with the project's own name (`range-market-assessment`,
-`range_market_assessment`, “Range Market Assessment”), ports and accent put back to the
-starter tokens, so `fstack new -t range` renames them for each new project. The answers
-come from the repo's `.fstack.json`, else from its files when fstack made it, else they're
-guessed: the name from `package.json` / `pyproject.toml` / `go.mod` / `Cargo.toml` (or the
-folder), the title from README's heading, ports from the Makefile (`API_PORT ?=`,
-`WEB_PORT ?=`) or `vite.config`; fix a wrong guess with `--source-name`, `--source-title`,
-`--api-port`, `--web-port`, `--accent`. The install steps are the original template's, or
-read from the repo (`uv sync`, `{pm} install`, `go mod download`, `cargo fetch`).
+Templates live in this repo under `templates/`, so a new or improved template reaches
+everyone with `uv tool upgrade fstack`. To turn an existing repo into a template, see
+[Add a template from a repo](CONTRIBUTING.md#add-a-template-from-a-repo).
 
-It reports, and leaves to you: what looks like a secret, other spellings of the name
-(`RangeMarketAssessment`), paths with the name in them (fstack never renames paths) and
-starter tokens the repo already had. It works in an fstack checkout (editable install);
-commit and push the new template so the team gets it. A git URL is cloned with your own git
-credentials (`gh auth login` or an SSH key), so private repos work too. Names too common to replace safely
-(`app`, `api`, `web`…) are refused.
+### The default template
 
-## What the default template gives
+Distilled from `pelni-assessment`, `py-new-assessment-center` (bars-dashboard),
+`cimb-assessment` and `daria`.
 
-**Backend** (`backend/`, uv, Python 3.13)
-- FastAPI app factory, sync SQLAlchemy Core with `?` SQL, pymysql, Alembic baseline
-- One access key (`APP_ACCESS_KEY`, generated): dashboard sign-in → hashed cookie session + CSRF,
-  API clients send `Authorization: Bearer <key>`; login throttle per IP
-- Providers (OpenAI & any OpenAI-compatible URL, Anthropic, Bedrock, Gemini) via **llmfy**;
-  keys AES-256-GCM encrypted; connection probe
-- **Runs**: code calls `run_prompt("key", vars, provider=…, model=…)`; temperature and max
-  tokens default to each model's own; providers load their model list from the API
-- **Prompt versioning**: draft (autosave) → published (immutable, SHA-256) → active pointer,
-  rollback, prompts-as-code seeding from `prompts/*.md`
-- **Observability**: `llm_calls` row per request (tokens incl. cache, cost from models.dev
-  rates with tiers, rate snapshot, latency, prompt version); usage summary API
-- Structured output via pydantic schema + one correction round-trip
-- MySQL-leased background jobs + worker with heartbeat; never replays billed calls
-- Tests on SQLite, including an end-to-end run through llmfy with a mocked OpenAI transport
+**Backend** (`backend/`: uv, Python 3.13)
 
-**Frontend** (`frontend/`, React 19, Vite 8, TypeScript 7, Tailwind v4)
-- Clerk-style two-row header: breadcrumb top bar + tabs with a gliding hover pill and
-  spring underline; Clerk button anatomy (inner highlight, drops, 1px ring)
-- Base UI primitives (Dialog, AlertDialog, Menu, Select, Tooltip, Switch), **vaul** drawer,
-  **OverlayScrollbars**, **torph** morphing numbers, **notch-toast**, cuelume sounds
-- TanStack Query hooks, react-router data router with per-route chunks
-- Pages: Overview (KPIs, spend chart, setup checklist), Run (pick prompt, provider, model;
-  optional temperature/max tokens — each project builds its own run logic here), Prompts (versions,
-  editor, diff, publish/activate), Usage (cost/requests/tokens chart, by model/prompt, call
-  drawer), Configure (Providers, Models & pricing)
-- Scaled-down type (13px), neutral palette, dark mode with view-transition cross-fade,
-  reduced-motion respected
+- FastAPI app factory, sync SQLAlchemy Core with `?` SQL, pymysql, and an Alembic baseline.
+- **Access**: one access key (`APP_ACCESS_KEY`, generated).
+  - The dashboard signs in with it and gets a hashed cookie session with CSRF protection.
+  - API clients send `Authorization: Bearer <key>`.
+  - Sign-in attempts are throttled per IP.
+- **Providers** via llmfy: OpenAI and any OpenAI-compatible URL, Anthropic, Bedrock and
+  Gemini. Keys are AES-256-GCM encrypted, and each connection is tested.
+- **Runs**: code calls `run_prompt("key", vars, provider=…, model=…)`.
+  - Temperature and max tokens default to each model's own values.
+  - Providers load their model list from the API.
+- **Prompt versioning**:
+  - A draft autosaves; a published version is immutable (SHA-256); an active pointer
+    picks the version in use.
+  - Rollback.
+  - Prompts as code, seeded from `prompts/*.md`.
+- **Observability**: one `llm_calls` row per request with:
+  - tokens, including cache
+  - cost from models.dev rates, including tiers, with a snapshot of the rates
+  - latency and prompt version
 
-**Ops**: Makefile, `make db-up` on Apple `container` (one shared `mysql`, a database per
-project, created by `make seed`) or docker compose MySQL 8.4, Dockerfiles (API + nginx SPA), GitHub Actions,
-`.claude/launch.json`, AGENTS.md/CLAUDE.md conventions.
+  A usage summary API reads from these rows.
+- Structured output via a pydantic schema, with one correction round-trip.
+- Background jobs leased in MySQL and a worker with a heartbeat; billed calls are never
+  replayed.
+- Tests run on SQLite, including an end-to-end run through llmfy with a mocked OpenAI
+  transport.
 
-## Releasing
+**Frontend** (`frontend/`: React 19, Vite 8, TypeScript 7, Tailwind v4)
 
-Versions are `vX.Y.Z` tags on `main` ([SemVer](https://semver.org); see the top of
-[CHANGELOG.md](CHANGELOG.md) for what bumps what). The version is set in one place,
-`src/fstack/__init__.py`.
+- **Header**: Clerk-style, two rows.
+  - A breadcrumb top bar.
+  - Tabs with a gliding hover pill and a spring underline.
+- **Buttons**: Clerk button anatomy (inner highlight, drop shadows, 1px ring).
+- **Libraries**:
+  - Base UI primitives (Dialog, AlertDialog, Menu, Select, Tooltip, Switch).
+  - Vaul drawer, OverlayScrollbars, torph morphing numbers, notch-toast, cuelume sounds.
+  - TanStack Query hooks.
+  - react-router data router, with a code chunk per route.
+- **Pages**:
+  - **Overview**: KPIs, a spend chart and a setup checklist.
+  - **Run**: pick a prompt, provider and model, with optional temperature and max tokens.
+    Each project builds its own run logic here.
+  - **Prompts**: versions, editor, diff, publish and activate.
+  - **Usage**: cost, requests and tokens over time, broken down by model and prompt, with
+    a drawer for each call.
+  - **Configure**: providers, models and pricing.
+- **Look**: scaled-down type (13px), a neutral palette, dark mode with a view-transition
+  cross-fade, and reduced motion respected.
 
-1. On the branch: set `__version__`, and turn CHANGELOG's “unreleased” into the date. List
-   template changes under **Template**: they are what `fstack update` brings into projects
-   (call out migrations and new dependencies).
-2. Merge into `main` with a merge commit, never squash or rebase: projects record the fstack
-   commit they came from in `.fstack.json`, and `fstack update` needs it in `main`'s history.
-3. Tag and push: `git tag -a v0.2.0 -m "fstack 0.2.0" && git push origin main v0.2.0`.
+**Ops**
 
-Versions are for people (what changed, what to pin, `fstack update --from v0.1.0`);
-`fstack update` itself goes by commits, so a project made between releases updates fine.
+- Makefile.
+- Local MySQL with `make db-up`:
+  - On Apple `container`, one shared `mysql` with a database per project, created by
+    `make seed`.
+  - Or docker compose with MySQL 8.4.
+- Dockerfiles for the API and an nginx SPA.
+- GitHub Actions.
+- `.claude/launch.json`.
+- AGENTS.md / CLAUDE.md conventions.
 
-## Working on the templates
+## Troubleshooting
 
-Each `templates/<name>/` is a runnable project named “Fstack Starter”. Run it like any
-generated project (`make -C templates/default dev`). The
-tokens `fstack-starter`, `fstack_starter`, `Fstack Starter`, ports `8710`/`5710` and the
-accent `#2f3037` are what `fstack new` rewrites — keep them intact when editing.
+**`uv tool install` says "Repository not found" or asks for a password.**
+You don't have access yet, or git can't sign in to GitHub. Run `gh auth login`, or
+install over SSH (see [Install](#install)).
 
-Next to the files, `fstack-template.toml` (never copied) says what the template is:
+**`fstack new` or `fstack update`: "no template 'x' in this fstack".**
+The template was added after your install. Run `uv tool upgrade fstack`.
 
-```toml
-description = "FastAPI + llmfy + MySQL API and a React dashboard"   # shown by `fstack doctor`
-answers = ["api_port", "web_port", "accent", "pm"]   # the rest stay as they are
-install = [{ dir = "backend", run = "uv sync --compile-bytecode" }, { dir = "frontend", run = "{pm} install" }]
-next = [["make dev", "api :{api_port} + web :{web_port}"]]   # printed after `fstack new`
-```
+**`fstack update`: "commit or stash your changes first".**
+The update needs a clean working tree so it lands as one diff.
 
-A new template, any stack, is a new folder with that file (its name is the folder's);
-`fstack template add` writes both. `uv run --group dev pytest` checks every template renders
-without leftover tokens.
+**`fstack update`: "the installed fstack … is older than this project's template".**
+A teammate updated the project with a newer fstack, and going ahead would undo template
+changes. Run `uv tool upgrade fstack`, then update again.
+
+**`fstack update` exits with code 1.**
+There are conflicts. Resolve the `<<<<<<<` markers (`git diff --check` lists them), then
+commit.
+
+**`make seed` gets "Access denied" from MySQL.**
+The password in `APP_DATABASE_URL` (`backend/.env`) isn't your MySQL root password. Fix it
+there, and export `DB_ROOT_PASSWORD` so the next project gets the right one.
