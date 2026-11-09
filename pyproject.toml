@@ -1,7 +1,7 @@
 [project]
 name = "fstack"
 dynamic = ["version"]  # from src/fstack/__init__.py
-description = "Personal scaffolder: FastAPI + llmfy + MySQL + React/Vite by default, any repo as a template."
+description = "Starts projects from shared templates and brings template updates into them: FastAPI + llmfy + MySQL + React/Vite by default, any repo as a template."
 requires-python = ">=3.12"
 dependencies = []
 
