@@ -367,7 +367,10 @@ def write_env(dest: Path, database_url: str | None, names: Names, password: str)
         database_url = f"mysql+pymysql://root:{encoded}@127.0.0.1:3306/{names.snake}"
     line = f"APP_DATABASE_URL={database_url}"
     text = re.sub(r"^APP_DATABASE_URL=.*$", lambda _: line, text, flags=re.M)
-    env.write_text(text, encoding="utf-8")
+    # Created 0600, not 0666 & ~umask and narrowed after: no window where others can read the secrets.
+    fd = os.open(env, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_BINARY", 0), 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(text)
     env.chmod(0o600)
     return True
 
