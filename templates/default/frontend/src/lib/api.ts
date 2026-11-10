@@ -25,7 +25,7 @@ function detailOf(payload: unknown, status: number): string {
     const detail = (payload as { detail: unknown }).detail;
     if (typeof detail === "string" && detail.trim()) return detail;
   }
-  if (status === 0) return "Can’t reach the API. Is `make api` running?";
+  if (status === 0) return "Can’t reach the API. Is `uv run tasks.py api` running?";
   return `Request failed (${status}).`;
 }
 

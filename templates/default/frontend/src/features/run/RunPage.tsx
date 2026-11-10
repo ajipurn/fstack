@@ -103,7 +103,7 @@ export function RunPage() {
   if (!runnable.length) {
     return (
       <Empty title="No published prompts yet" action={<Link to="/prompts" className={buttonClass({})}>Open prompts</Link>}>
-        Write and publish one in Prompts, or drop a Markdown file in backend/prompts and run make seed.
+        Write and publish one in Prompts, or drop a Markdown file in backend/prompts and seed it: uv run tasks.py seed.
       </Empty>
     );
   }

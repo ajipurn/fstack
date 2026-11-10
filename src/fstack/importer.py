@@ -419,13 +419,13 @@ def add(args: argparse.Namespace) -> int:
         return 0
 
     cli.write_tree(reversed_tree, dest)
-    (dest / cli.MANIFEST).write_text(manifest(label, commit, description, keys, install, steps), encoding="utf-8")
+    (dest / cli.MANIFEST).write_text(manifest(label, commit, description, keys, install, steps), encoding="utf-8", newline="\n")
     cli.load_template(source.root, name)  # the manifest must read back
     rel = os.path.relpath(dest, Path(source.repo))
     print(
         f"""
   Next:
-    fstack new demo -t {name} --dir /tmp/{name}-demo   {_c('2', '# try it')}
+    fstack new demo -t {name} --dir {Path(tempfile.gettempdir()) / f'{name}-demo'}   {_c('2', '# try it')}
     git -C {source.repo} add {rel} && git -C {source.repo} commit -m "feat(templates): add {name}"
 """
     )

@@ -1,4 +1,4 @@
-"""`make seed` — idempotent: migrate, prompts from files, optional env provider,
+"""`uv run tasks.py seed` — idempotent: migrate, prompts from files, optional env provider,
 models.dev prices. Never runs at API startup.
 
     python -m app.cli.seed [--skip-prices]
@@ -23,7 +23,7 @@ def say(text: str) -> None:
 
 def check_access_key() -> None:
     if len(get_settings().access_key.strip()) < 32:
-        say("access: set APP_ACCESS_KEY in backend/.env (`make key` prints a fresh one)")
+        say("access: set APP_ACCESS_KEY in backend/.env (`uv run tasks.py key` prints a fresh one)")
     else:
         say("access: sign in with APP_ACCESS_KEY from backend/.env")
 
@@ -75,8 +75,8 @@ def main(argv: list[str] | None = None) -> None:
     except OperationalError as exc:
         sys.exit(
             f"seed failed: MySQL said {exc.orig}\n"
-            "  Is MySQL running (`make db-up`), and does APP_DATABASE_URL in backend/.env\n"
-            "  have root's current password?"
+            "  Is MySQL running (`uv run tasks.py db-up`), and does APP_DATABASE_URL in\n"
+            "  backend/.env have root's current password?"
         )
     if created:
         say(f"database: created {created}")

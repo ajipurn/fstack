@@ -34,7 +34,13 @@ checked out.
    - **Template (name)** for template changes. These are what `fstack update` brings into
      projects, so call out migrations, new dependencies and `.env` changes.
 3. Make sure `uv run pytest` passes. It renders every template and fails on leftover
-   starter tokens.
+   starter tokens. CI runs it on Linux and Windows, and builds and checks a new project
+   from the default template on both.
+   - Windows has no file modes or easy symlinks: tests that need them use `@posix_only`.
+   - Read and write text with `encoding="utf-8"` (and `newline="\n"` when writing): the
+     Windows default is the local code page and CRLF.
+   - A template's tasks belong in its `tasks.py`, which runs everywhere; its Makefile only
+     forwards to it.
 4. Merge with a **merge commit**, never squash or rebase. Projects record the fstack commit
    they came from in `.fstack.json`, and `fstack update` needs that commit to stay in
    `main`'s history.
@@ -62,8 +68,10 @@ To run the default template, copy `backend/.env.example` to `backend/.env` once 
 in (its comments say how). Then:
 
 ```bash
-make -C templates/default setup db-up seed
-make -C templates/default dev
+uv run templates/default/tasks.py setup
+uv run templates/default/tasks.py db-up
+uv run templates/default/tasks.py seed
+uv run templates/default/tasks.py dev
 ```
 
 `.claude/launch.json` has `template-api` and `template-web` for Claude Code previews.
@@ -75,7 +83,7 @@ into projects:
 description = "FastAPI + llmfy + MySQL API and a React dashboard"   # shown by `fstack doctor`
 answers = ["api_port", "web_port", "accent", "pm"]   # what `fstack new` asks; the rest stay as they are
 install = [{ dir = "backend", run = "uv sync --compile-bytecode" }, { dir = "frontend", run = "{pm} install" }]
-next = [["make dev", "api :{api_port} + web :{web_port}"]]   # printed after `fstack new`
+next = [["uv run tasks.py dev", "api :{api_port} + web :{web_port}"]]   # printed after `fstack new`
 ```
 
 A new template, in any stack, is a new folder with that file, and the folder's name is the

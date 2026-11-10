@@ -1,0 +1,54 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # fstack's own tests. Windows runners check out with core.autocrlf=true, as most
+  # Windows machines do.
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run pytest -q
+
+  # A project from the default template, built and checked the way a teammate would.
+  project:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      DB_ROOT_PASSWORD: ci-root
+      GIT_AUTHOR_NAME: ci
+      GIT_AUTHOR_EMAIL: ci@example.com
+      GIT_COMMITTER_NAME: ci
+      GIT_COMMITTER_EMAIL: ci@example.com
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # fstack update reads templates from fstack's history
+      - uses: astral-sh/setup-uv@v6
+      - uses: oven-sh/setup-bun@v2
+      - run: uv tool install --editable .
+      - name: fstack new
+        run: fstack new demo-app --dir "${{ runner.temp }}/demo-app"
+      - name: Check the project
+        working-directory: ${{ runner.temp }}/demo-app
+        run: uv run tasks.py check
+      - name: Nothing to update right after fstack new
+        working-directory: ${{ runner.temp }}/demo-app
+        run: |
+          fstack update --dry-run
+          git status --porcelain
+          git diff --exit-code

@@ -9,7 +9,7 @@ from fstack import cli
 @pytest.fixture(autouse=True)
 def isolated(tmp_path, monkeypatch):
     gitconfig = tmp_path / "gitconfig"
-    gitconfig.write_text("")
+    gitconfig.write_text("", encoding="utf-8", newline="\n")
     for key, value in {
         "GIT_CONFIG_GLOBAL": str(gitconfig),
         "GIT_CONFIG_NOSYSTEM": "1",

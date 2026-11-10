@@ -24,4 +24,4 @@ jobs:
       - run: cd frontend && bun install --frozen-lockfile
       - name: Migrate against real MySQL
         run: cd backend && uv run alembic upgrade head
-      - run: make lint test build PM=bun
+      - run: uv run tasks.py check

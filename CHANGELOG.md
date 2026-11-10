@@ -5,6 +5,32 @@ or template changes a project has to act on (a migration, a new dependency, a
 `.fstack.json` change), and a patch release fixes things. **Template** lists what
 `fstack update` brings into projects made from that template.
 
+## Unreleased
+
+### fstack
+
+- Runs on Windows. `fstack new` and `fstack update` no longer stop at the first file they
+  write (`O_NOFOLLOW` is POSIX-only), keep files byte for byte (no CRLF), read and print
+  UTF-8 whatever the console's code page, and run `pnpm.cmd`-style tools. Windows files
+  have no executable bit, so there a mode never counts as a change.
+- fstack's own files are LF on every OS (`.gitattributes`), so a Windows checkout renders
+  templates as they are.
+- `fstack doctor` drops `python3` (uv brings Python), lists `make` as an optional shortcut,
+  and Apple `container` only on macOS.
+- After `fstack update`, the next steps are one command per line and name the project's
+  `tasks.py` when it has one.
+
+### Template (default)
+
+- **`tasks.py`** runs every task on macOS, Linux and Windows: `uv run tasks.py dev`,
+  `uv run tasks.py help` for the list. It replaces `scripts/mysql.sh` (removed), and the
+  Makefile now only forwards to it, so `make dev` still works on macOS and Linux.
+- `.gitattributes` keeps the project's files LF on every OS, which `fstack update` merges
+  against.
+- Docs, error messages, `.claude/launch.json` and CI name `uv run tasks.py <task>`.
+- The `revision` task takes the message as words: `uv run tasks.py revision add widgets`
+  (`make revision m="add widgets"` still works).
+
 ## 0.2.0 — 2026-11-09
 
 ### fstack

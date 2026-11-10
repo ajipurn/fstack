@@ -28,7 +28,7 @@ export function PromptsPage() {
           </div>
         ) : !prompts.data?.length ? (
           <Empty icon={<FileText />} title="No prompts yet" action={<Button onClick={() => setCreating(true)}>Create prompt</Button>}>
-            Add one here, or drop a Markdown file in backend/prompts and run make seed.
+            Add one here, or drop a Markdown file in backend/prompts and seed it: uv run tasks.py seed.
           </Empty>
         ) : (
           <div className="table-wrap">

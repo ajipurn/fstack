@@ -81,7 +81,25 @@ STARTER = {
 
 # ── output helpers ───────────────────────────────────────────────────────────
 
-_TTY = sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
+def _ansi_ok() -> bool:
+    """Whether stdout shows ANSI colors. A Windows console does once asked to."""
+    if os.name != "nt":
+        return True
+    try:
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+        mode = ctypes.c_uint32()
+        enable_vt = 0x0004  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+        return bool(kernel32.GetConsoleMode(handle, ctypes.byref(mode))) and bool(
+            kernel32.SetConsoleMode(handle, mode.value | enable_vt)
+        )
+    except (AttributeError, OSError):
+        return False
+
+
+_TTY = sys.stdout.isatty() and os.environ.get("NO_COLOR") is None and _ansi_ok()
 
 
 def _c(code: str, text: str) -> str:
@@ -292,7 +310,7 @@ def template_files(src: Path) -> Iterator[Path]:
 
 
 def _entry(path: Path) -> merge.Entry:
-    return merge.Entry(path.read_bytes(), os.access(path, os.X_OK))
+    return merge.Entry(path.read_bytes(), merge.HAS_MODES and os.access(path, os.X_OK))
 
 
 def _text(rel: str, data: bytes) -> str | None:
@@ -369,7 +387,7 @@ def write_env(dest: Path, database_url: str | None, names: Names, password: str)
     text = re.sub(r"^APP_DATABASE_URL=.*$", lambda _: line, text, flags=re.M)
     # Created 0600, not 0666 & ~umask and narrowed after: no window where others can read the secrets.
     fd = os.open(env, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_BINARY", 0), 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+    with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
         handle.write(text)
     env.chmod(0o600)
     return True
@@ -400,16 +418,17 @@ def _tool_version(tool: str) -> str | None:
     if not exe:
         return None
     try:
-        out = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=10)
+        out = subprocess.run([exe, "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
     except (OSError, subprocess.TimeoutExpired):
         return None
-    match = re.search(r"\d+\.\d+\.\d+", out.stdout + out.stderr)
+    match = re.search(r"\d+\.\d+(?:\.\d+)?", out.stdout + out.stderr)  # make says 3.81
     return match.group(0) if match else None
 
 
 def run(cmd: list[str], cwd: Path, label: str) -> bool:
     step(label)
-    proc = subprocess.run(cmd, cwd=cwd)
+    # By full path: Windows runs `pnpm.cmd` only when named, not as `pnpm`.
+    proc = subprocess.run([shutil.which(cmd[0]) or cmd[0], *cmd[1:]], cwd=cwd)
     if proc.returncode != 0:
         fail(f"{label} failed ({' '.join(cmd)})")
         return False
@@ -441,7 +460,7 @@ class Source:
 
 
 def _git(cwd: Path, *args: str) -> str:
-    proc = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+    proc = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if proc.returncode != 0:
         raise FstackError(proc.stderr.strip() or f"git {' '.join(args)} failed")
     return proc.stdout.strip()
@@ -519,7 +538,7 @@ def fstack_repo(source: Source, *revs: str) -> Path:
 def check_not_older(gitdir: Path, base_rev: str, commit: str) -> None:
     """Refuse when the installed fstack doesn't contain the project's template: the update
     would undo template changes the project already has."""
-    proc = subprocess.run(["git", "merge-base", "--is-ancestor", base_rev, commit], cwd=gitdir, capture_output=True, text=True)
+    proc = subprocess.run(["git", "merge-base", "--is-ancestor", base_rev, commit], cwd=gitdir, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if proc.returncode == 1:
         raise FstackError(
             f"the installed fstack ({commit[:7]}) is older than this project's template ({base_rev[:7]}) "
@@ -629,7 +648,11 @@ def cmd_new(args: argparse.Namespace) -> int:
 
     steps = [(cmd.format_map(fields), comment and "# " + comment.format_map(fields)) for cmd, comment in template.next]
     width = max((len(cmd) for cmd, _ in steps), default=0)
-    print(f"\n  Next:\n    cd {os.path.relpath(dest)}")
+    try:
+        where = os.path.relpath(dest)
+    except ValueError:  # Windows: on another drive than the current folder
+        where = str(dest)
+    print(f"\n  Next:\n    cd {shlex.quote(where) if ' ' in where else where}")
     for cmd, comment in steps:
         print(f"    {cmd:<{width}}  {_c('2', comment)}".rstrip())
     print()
@@ -749,7 +772,7 @@ def resolve_base(
     # it: use it until the project's first update.
     scaffold_meta = None
     if scaffold:
-        shown = subprocess.run(["git", "show", f"{scaffold[0]}:{META}"], cwd=root, capture_output=True, text=True)
+        shown = subprocess.run(["git", "show", f"{scaffold[0]}:{META}"], cwd=root, capture_output=True, text=True, encoding="utf-8", errors="replace")
         scaffold_meta = _json_object(shown.stdout, f"{META} in the scaffold commit") if shown.returncode == 0 else None
     use_scaffold = bool(scaffold) and not from_rev and (meta is None or (scaffold_meta or {}).get("commit") == rev)
 
@@ -842,17 +865,20 @@ def update(root: Path, *, dry_run: bool = False, from_rev: str | None = None, al
     touched = {c.path for c in changes if c.data is not None}
     added_migrations = [c.path for c in changes if c.kind == "added" and c.path.startswith(MIGRATIONS)]
     own_migrations = [p for p in (root / MIGRATIONS).glob("*.py") if f"{MIGRATIONS}{p.name}" not in new]
+    # One command per line, no `cd … &&`: Windows PowerShell 5 has no `&&`.
+    task = "uv run tasks.py" if (root / "tasks.py").is_file() else "make"
     hints = []
     if conflicted:
         hints.append(("git diff --check", "# lists leftover conflict markers (✗): fix them by hand"))
     if touched & DEPENDENCY_FILES:
-        hints.append(("make setup", "# dependencies changed: refresh the lockfiles"))
+        hints.append((f"{task} setup", "# dependencies changed: refresh the lockfiles"))
     if added_migrations and own_migrations:
-        hints.append(("cd backend && uv run alembic heads", "# two heads? `uv run alembic merge heads -m fstack`"))
+        hints.append(("uv run --directory backend alembic heads", "# two heads? `alembic merge heads -m fstack`"))
     if added_migrations:
-        hints.append(("make migrate", "# new migrations from the template"))
+        hints.append((f"{task} migrate", "# new migrations from the template"))
     hints.append(("git diff", "# review"))
-    hints.append((f'git add -A && git commit -m "chore: update from fstack {__version__}"', ""))
+    hints.append(("git add -A", ""))
+    hints.append((f'git commit -m "chore: update from fstack {__version__}"', ""))
     width = max(len(cmd) for cmd, comment in hints if comment)
     print("\n  Next:")
     for cmd, comment in hints:
@@ -869,14 +895,14 @@ def cmd_template_add(args: argparse.Namespace) -> int:
 
 def cmd_doctor(_: argparse.Namespace) -> int:
     checks = [
-        ("uv", "backend env + deps"),
-        ("python3", "python runtime"),
+        ("uv", "python, backend env + deps, project tasks (uv run tasks.py)"),
         ("bun", "frontend pm (default)"),
         ("pnpm", "frontend pm (alt)"),
         ("node", "vite tooling"),
-        ("container", "local MySQL via `make db-up` (Apple container)"),
-        ("docker", "local MySQL via `make db-up` (alt)"),
-        ("git", "repository init"),
+        *([("container", "local MySQL via db-up (Apple container)")] if sys.platform == "darwin" else []),
+        ("docker", "local MySQL via db-up" + (" (alt)" if sys.platform == "darwin" else "")),
+        ("git", "repository init, fstack update"),
+        *([("make", "make <task>: shortcut for uv run tasks.py <task>")] if os.name != "nt" else []),
     ]
     missing = 0
     for tool, purpose in checks:
@@ -885,7 +911,7 @@ def cmd_doctor(_: argparse.Namespace) -> int:
             ok(f"{tool:<9} {version:<10} {_c('2', purpose)}")
         else:
             warn(f"{tool:<9} {'missing':<10} {_c('2', purpose)}")
-            missing += tool in {"uv", "python3"}
+            missing += tool in {"uv", "git"}
     if os.environ.get("DB_ROOT_PASSWORD"):
         ok(f"{'DB_ROOT_PASSWORD':<20} {_c('2', 'set: fstack new writes it into backend/.env')}")
     else:
@@ -905,6 +931,9 @@ def cmd_doctor(_: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(line_buffering=True)  # keep our lines ordered with child output
+    if os.name == "nt":  # ✓ · ← and names print anywhere, not only where cp1252 has them
+        for stream in (sys.stdout, sys.stderr):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(prog="fstack", description="Scaffold new projects from templates.")
     parser.add_argument("--version", action="version", version=f"fstack {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)

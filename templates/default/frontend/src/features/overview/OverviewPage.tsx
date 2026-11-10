@@ -93,7 +93,7 @@ function SetupChecklist() {
     {
       done: !!health.data?.worker.online,
       label: "Start the worker",
-      hint: "make worker — runs background jobs",
+      hint: "uv run tasks.py worker — runs background jobs",
       to: null,
     },
   ];

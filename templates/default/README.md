@@ -5,19 +5,22 @@ FastAPI · llmfy · MySQL · React 19 · Vite · TanStack Query · Base UI · Ta
 ## Run it
 
 ```bash
-make db-up        # MySQL: Apple container or Docker — or point APP_DATABASE_URL elsewhere
-make seed         # create the database if missing, migrate, prompts, prices
-make dev          # API :8710 + web :5710
-make worker       # background jobs, in another terminal
+uv run tasks.py db-up     # MySQL: Apple container or Docker — or point APP_DATABASE_URL elsewhere
+uv run tasks.py seed      # create the database if missing, migrate, prompts, prices
+uv run tasks.py dev       # API :8710 + web :5710
+uv run tasks.py worker    # background jobs, in another terminal
 ```
 
-`make db-up` uses whichever runtime is running, Apple's `container` first. With Apple
+`tasks.py` runs the same on macOS, Linux and Windows; on macOS/Linux `make <task>` is a
+shortcut (`uv run tasks.py dev`). `uv run tasks.py help` lists every task.
+
+`db-up` uses whichever runtime is running, Apple's `container` first (macOS). With Apple
 container every project shares one `mysql` container; with Docker each project runs its
-own from `compose.yaml`. The app connects as root (`APP_DATABASE_URL`) and `make seed`
+own from `compose.yaml`. The app connects as root (`APP_DATABASE_URL`) and `uv run tasks.py seed`
 creates the project's database. `fstack new` fills in root's password from
-`DB_ROOT_PASSWORD` (export it once in `~/.zshrc`), else `root`; a container `db-up`
-creates gets the same. Force a runtime with `make db-up DB_RUNTIME=docker`; use a
-container with another name via `DB_CONTAINER=…`. `make db-down` on Apple container
+`DB_ROOT_PASSWORD` (export it once in `~/.zshrc`, or `setx` it on Windows), else `root`; a container `db-up`
+creates gets the same. Force a runtime with `DB_RUNTIME=docker` in the environment; use a
+container with another name via `DB_CONTAINER=…`. `db-down` on Apple container
 stops the shared container for every project.
 
 Sign in with `APP_ACCESS_KEY` from `backend/.env`, then:
@@ -52,7 +55,7 @@ result.cost_usd    # from models.dev rates, frozen on the llm_calls row
 overload, refused connections — with exponential backoff; timeouts are never retried.
 In the dashboard, `useRun()` gives `stop()` (no new request or retry starts; one already
 sent finishes and is recorded) and `retry()`; jobs have cancel and retry too.
-Add a prompt: write `backend/prompts/<key>.md` and run `make seed`; list it in
+Add a prompt: write `backend/prompts/<key>.md` and run `uv run tasks.py seed`; list it in
 `backend/app/llm/outputs.py` only if code needs typed JSON back. Long work:
 `jobs.enqueue(db, "llm.run", {"prompt_key": …, "provider_id": …, "model": …, "variables": {…}})`.
 
@@ -65,7 +68,7 @@ session cookie; scripts and other services send it on every request:
 curl -H "Authorization: Bearer $APP_ACCESS_KEY" http://127.0.0.1:8710/api/usage/summary
 ```
 
-Rotate it with `make key` → paste into `backend/.env` → restart the API. Every browser
+Rotate it with `uv run tasks.py key` → paste into `backend/.env` → restart the API. Every browser
 session ends; update the scripts that use it.
 
 ## Prompt versioning
@@ -74,16 +77,16 @@ Drafts autosave; publishing freezes the text, stamps a SHA-256 and (optionally) 
 it. Runs use the prompt's **active** version unless they pin one; rollback = activate an
 older one. Every call records the version and digest it used. Deleting a prompt removes
 its versions but not its call history; a prompt that still has `prompts/<key>.md` comes
-back on the next `make seed`.
+back on the next `uv run tasks.py seed`.
 
 ## Observability
 
 `llm_calls` holds one row per provider request: tokens (input incl. cache read/write,
 output), `cost_usd`, the rate snapshot used, latency, status and prompt version.
-Prices come from [models.dev](https://models.dev) (`make prices`); manual overrides
+Prices come from [models.dev](https://models.dev) (`uv run tasks.py prices`); manual overrides
 survive syncs. Set `APP_LOG_LLM_PAYLOADS=true` to keep rendered prompts and outputs.
 **Usage → Clear usage** deletes every recorded call (prompts, providers and prices stay).
 
 ## Layout
 
-See [AGENTS.md](AGENTS.md) for conventions. `make help` lists every command.
+See [AGENTS.md](AGENTS.md) for conventions. `uv run tasks.py help` lists every task.

@@ -1,4 +1,4 @@
-"""`make worker` — leased job loop. Run it as its own process/service; API
+"""`uv run tasks.py worker` — leased job loop. Run it as its own process/service; API
 restarts don't stop it and it never replays a job whose lease was lost."""
 
 import logging

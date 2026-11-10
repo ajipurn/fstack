@@ -1,4 +1,4 @@
-"""`make prices` — refresh model prices from models.dev."""
+"""`uv run tasks.py prices` — refresh model prices from models.dev."""
 
 import sys
 

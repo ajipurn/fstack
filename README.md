@@ -29,7 +29,14 @@ You need:
 | [`uv`](https://docs.astral.sh/uv/) | installing fstack, and the backend |
 | `bun` or `pnpm` | the frontend (`bun` unless you pass `--pm pnpm`) |
 | `git` | fetching fstack, and project history |
-| Apple `container` or Docker | local MySQL (`make db-up`) |
+| Docker, or Apple `container` on macOS | local MySQL (`db-up`) |
+
+fstack runs on macOS, Linux and Windows. On Windows, install the tools with winget, in
+PowerShell:
+
+```powershell
+winget install astral-sh.uv Git.Git Oven-sh.Bun Docker.DockerDesktop GitHub.cli
+```
 
 1. The repo is private, so ask for read access to `ajipurn/fstack` first. Then let git
    reach it with `gh auth login` (HTTPS) or an SSH key on GitHub.
@@ -46,6 +53,8 @@ You need:
    ```bash
    export DB_ROOT_PASSWORD='…'
    ```
+
+   On Windows, `setx DB_ROOT_PASSWORD "…"` (new terminals see it).
 
    `fstack new` writes it into each project's `backend/.env`. Without it, `fstack new`
    asks (Enter keeps `root`).
@@ -89,10 +98,13 @@ fstack new pelni-review -t board                  # another template (fstack doc
 
 ```bash
 cd talent-review
-make db-up     # MySQL via Apple container or Docker
-make seed      # create the database, migrate, load prompts and model prices
-make dev       # API + web; sign in with APP_ACCESS_KEY from backend/.env
+uv run tasks.py db-up     # MySQL via Apple container or Docker
+uv run tasks.py seed      # create the database, migrate, load prompts and model prices
+uv run tasks.py dev       # API + web; sign in with APP_ACCESS_KEY from backend/.env
 ```
+
+`uv run tasks.py <task>` works the same on every OS; on macOS and Linux, `make <task>` is
+a shortcut for it (`make dev`). `uv run tasks.py help` lists the tasks.
 
 | Flag | Default | |
 |---|---|---|
@@ -125,7 +137,7 @@ After the update:
 
 1. Review `git diff`.
 2. Resolve any conflicts.
-3. Run what fstack prints: `make setup` when dependencies changed, `make migrate` for new
+3. Run what fstack prints: the `setup` task when dependencies changed, `migrate` for new
    migrations.
 4. Commit.
 
@@ -241,10 +253,11 @@ Distilled from `pelni-assessment`, `py-new-assessment-center` (bars-dashboard),
 
 **Ops**
 
-- Makefile.
-- Local MySQL with `make db-up`:
-  - On Apple `container`, one shared `mysql` with a database per project, created by
-    `make seed`.
+- `tasks.py` for every task, on macOS, Linux and Windows (`uv run tasks.py help`), and a
+  Makefile with the same tasks as shortcuts on macOS and Linux.
+- Local MySQL with the `db-up` task:
+  - On Apple `container` (macOS), one shared `mysql` with a database per project, created
+    by the `seed` task.
   - Or docker compose with MySQL 8.4.
 - Dockerfiles for the API and an nginx SPA.
 - GitHub Actions.
@@ -271,6 +284,6 @@ changes. Run `uv tool upgrade fstack`, then update again.
 There are conflicts. Resolve the `<<<<<<<` markers (`git diff --check` lists them), then
 commit.
 
-**`make seed` gets "Access denied" from MySQL.**
+**`seed` gets "Access denied" from MySQL.**
 The password in `APP_DATABASE_URL` (`backend/.env`) isn't your MySQL root password. Fix it
 there, and export `DB_ROOT_PASSWORD` so the next project gets the right one.

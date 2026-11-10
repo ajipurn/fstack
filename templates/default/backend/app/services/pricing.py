@@ -1,6 +1,6 @@
 """Model prices from models.dev (USD per 1M tokens) and per-call cost.
 
-`make prices` (or the Models page) refreshes `model_prices`. Rows with
+`uv run tasks.py prices` (or the Models page) refreshes `model_prices`. Rows with
 source='manual' are yours and never overwritten. Cost is computed once, at call
 time, and stored on llm_calls with the rates used — history never re-prices.
 """

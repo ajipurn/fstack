@@ -231,7 +231,7 @@ def discard_draft(db: Connection, actor: dict[str, Any], key: str) -> None:
 
 def delete(db: Connection, actor: dict[str, Any], key: str) -> dict[str, Any]:
     """Remove a prompt and all its versions. Call history keeps the prompt key.
-    A prompt that still has `prompts/<key>.md` comes back on the next `make seed`."""
+    A prompt that still has `prompts/<key>.md` comes back on the next `uv run tasks.py seed`."""
     get_prompt_row(db, key)
     versions = db.execute("DELETE FROM prompt_versions WHERE prompt_key=?", (key,)).rowcount
     db.execute("DELETE FROM prompts WHERE `key`=?", (key,))

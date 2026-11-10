@@ -14,7 +14,7 @@ EXAMPLE = "APP_DATABASE_URL=mysql+pymysql://root:root@127.0.0.1:3306/x\nAPP_ACCE
 
 def _project(tmp_path: Path) -> Path:
     (tmp_path / "backend").mkdir()
-    (tmp_path / "backend" / ".env.example").write_text(EXAMPLE, encoding="utf-8")
+    (tmp_path / "backend" / ".env.example").write_text(EXAMPLE, encoding="utf-8", newline="\n")
     return tmp_path
 
 
@@ -46,6 +46,6 @@ def test_env_is_left_alone(tmp_path):
     assert not cli.write_env(tmp_path, None, NAMES, "pw")  # no .env.example
     dest = _project(tmp_path)
     env = dest / "backend" / ".env"
-    env.write_text("mine\n", encoding="utf-8")
+    env.write_text("mine\n", encoding="utf-8", newline="\n")
     assert not cli.write_env(dest, None, NAMES, "pw")
     assert env.read_text(encoding="utf-8") == "mine\n"

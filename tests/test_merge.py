@@ -2,8 +2,9 @@ import os
 from pathlib import Path
 
 import pytest
+from helpers import posix_only
 
-from fstack.merge import Change, Entry, apply, plan
+from fstack.merge import HAS_MODES, Change, Entry, apply, plan
 
 LABELS = ("project", "old", "new")
 TEXT = "".join(f"line {i}\n" for i in range(10))
@@ -63,7 +64,7 @@ def test_binary_changed_on_both_sides_keeps_ours():
 
 def test_apply_writes_and_cleans_up(tmp_path):
     (tmp_path / "old" / "deep").mkdir(parents=True)
-    (tmp_path / "old" / "deep" / "f").write_text("x")
+    (tmp_path / "old" / "deep" / "f").write_text("x", encoding="utf-8", newline="\n")
     apply(
         [
             Change("old/deep/f", "removed"),
@@ -73,7 +74,7 @@ def test_apply_writes_and_cleans_up(tmp_path):
         tmp_path,
     )
     assert not (tmp_path / "old").exists()
-    assert (tmp_path / "bin" / "run.sh").stat().st_mode & 0o111
+    assert not HAS_MODES or (tmp_path / "bin" / "run.sh").stat().st_mode & 0o111
     assert not (tmp_path / "skip").exists()
 
 
@@ -104,9 +105,9 @@ def test_moved_file_carries_project_edits():
 def test_pure_move_of_untouched_file_is_a_rename(tmp_path):
     [change] = plan({"old": e(TEXT)}, {"new": e(TEXT)}, {"old": e(TEXT)}, LABELS)
     assert (change.kind, change.old) == ("renamed", "old")
-    (tmp_path / "old").write_text(TEXT)
+    (tmp_path / "old").write_text(TEXT, encoding="utf-8", newline="\n")
     apply([change], tmp_path)
-    assert not (tmp_path / "old").exists() and (tmp_path / "new").read_text() == TEXT
+    assert not (tmp_path / "old").exists() and (tmp_path / "new").read_text(encoding="utf-8") == TEXT
 
 
 def test_tiny_or_unrelated_files_are_not_moves():
@@ -131,8 +132,8 @@ def linked(tmp_path) -> Path:
     """A project whose symlinks lead outside it (and into its .git), next to `outside/`."""
     root, outside = tmp_path / "project", tmp_path / "outside"
     (outside / "deep").mkdir(parents=True)
-    (outside / "deep" / "f").write_text("keep")
-    (outside / "target").write_text("keep")
+    (outside / "deep" / "f").write_text("keep", encoding="utf-8", newline="\n")
+    (outside / "target").write_text("keep", encoding="utf-8", newline="\n")
     (root / ".git" / "hooks").mkdir(parents=True)
     (root / "Makefile").symlink_to(outside / "target")
     (root / "dangling").symlink_to(outside / "created")
@@ -148,10 +149,11 @@ def _files(top: Path) -> dict[str, str]:
     for where, _, names in os.walk(top):
         for path in (Path(where, name) for name in names):
             if not path.is_symlink():
-                found[str(path.relative_to(top))] = path.read_text()
+                found[str(path.relative_to(top))] = path.read_text(encoding="utf-8")
     return found
 
 
+@posix_only
 @pytest.mark.parametrize(
     "change",
     [
@@ -177,11 +179,12 @@ def test_apply_refuses_paths_that_leave_the_project(linked, tmp_path, change):
     assert (linked / "old").is_symlink() and (linked / "scripts").is_symlink()
 
 
+@posix_only
 def test_apply_follows_symlinks_inside_the_project(tmp_path):
     (tmp_path / "docs").mkdir()
-    (tmp_path / "docs" / "README.md").write_text("old")
+    (tmp_path / "docs" / "README.md").write_text("old", encoding="utf-8", newline="\n")
     (tmp_path / "README.md").symlink_to(Path("docs", "README.md"))
-    (tmp_path / "AGENTS.md").write_text("old")
+    (tmp_path / "AGENTS.md").write_text("old", encoding="utf-8", newline="\n")
     (tmp_path / "CLAUDE.md").symlink_to(tmp_path / "AGENTS.md")  # absolute, still inside
     (tmp_path / "tools").mkdir()
     (tmp_path / "scripts").symlink_to("tools")
@@ -193,20 +196,21 @@ def test_apply_follows_symlinks_inside_the_project(tmp_path):
         ],
         tmp_path,
     )
-    assert (tmp_path / "docs" / "README.md").read_text() == "new" and (tmp_path / "README.md").is_symlink()
-    assert (tmp_path / "AGENTS.md").read_text() == "agents" and (tmp_path / "CLAUDE.md").is_symlink()
+    assert (tmp_path / "docs" / "README.md").read_text(encoding="utf-8") == "new" and (tmp_path / "README.md").is_symlink()
+    assert (tmp_path / "AGENTS.md").read_text(encoding="utf-8") == "agents" and (tmp_path / "CLAUDE.md").is_symlink()
     assert (tmp_path / "tools" / "new.sh").stat().st_mode & 0o111 and (tmp_path / "scripts").is_symlink()
 
 
+@posix_only
 def test_removing_a_symlink_removes_the_link_not_its_target(linked, tmp_path):
     (linked / "tools" / "deep").mkdir(parents=True)
-    (linked / "tools" / "deep" / "old.sh").write_text("x")
-    (linked / "tools" / "keep.sh").write_text("x")
+    (linked / "tools" / "deep" / "old.sh").write_text("x", encoding="utf-8", newline="\n")
+    (linked / "tools" / "keep.sh").write_text("x", encoding="utf-8", newline="\n")
     (linked / "bin").symlink_to("tools")
     before = _files(tmp_path)
     apply([Change("Makefile", "removed"), Change("bin/deep/old.sh", "removed")], linked)
     assert not (linked / "Makefile").is_symlink()
-    assert (tmp_path / "outside" / "target").read_text() == "keep"  # the link went, not what it pointed to
+    assert (tmp_path / "outside" / "target").read_text(encoding="utf-8") == "keep"  # the link went, not what it pointed to
     assert not (linked / "tools" / "deep").exists() and (linked / "tools" / "keep.sh").exists()
     assert _files(tmp_path) == {k: v for k, v in before.items() if k != "project/tools/deep/old.sh"}
 
@@ -214,6 +218,6 @@ def test_removing_a_symlink_removes_the_link_not_its_target(linked, tmp_path):
 def test_cleanup_stops_at_the_project_root(tmp_path):
     root = tmp_path / "project"
     (root / "only").mkdir(parents=True)
-    (root / "only" / "f").write_text("x")
+    (root / "only" / "f").write_text("x", encoding="utf-8", newline="\n")
     apply([Change("only/f", "removed")], root)
     assert root.is_dir() and not any(root.iterdir())
