@@ -3,14 +3,14 @@
   "configurations": [
     {
       "name": "api",
-      "runtimeExecutable": "make",
-      "runtimeArgs": ["api"],
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "tasks.py", "api"],
       "port": 8710
     },
     {
       "name": "web",
-      "runtimeExecutable": "make",
-      "runtimeArgs": ["web"],
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "tasks.py", "web"],
       "port": 5710
     }
   ]

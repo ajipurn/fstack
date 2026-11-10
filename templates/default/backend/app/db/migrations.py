@@ -59,4 +59,4 @@ def check_schema(url: str | None = None) -> None:
     with engine_for(database_url(url)).connect() as connection:
         current = set(MigrationContext.configure(connection).get_current_heads())
     if current != heads:
-        raise RuntimeError("Database migrations are pending. Run `make migrate`.")
+        raise RuntimeError("Database migrations are pending. Run `uv run tasks.py migrate`.")

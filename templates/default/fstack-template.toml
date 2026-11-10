@@ -11,8 +11,9 @@ install = [
 ]
 
 # Printed under "Next:"; {api_port}, {web_port}, … are the project's answers.
+# `uv run tasks.py` runs on every OS; `make <task>` is the macOS/Linux shortcut.
 next = [
-  ["make db-up", "MySQL via Apple container or Docker (or set APP_DATABASE_URL)"],
-  ["make seed", "schema, prompts, prices; sign in with APP_ACCESS_KEY (backend/.env)"],
-  ["make dev", "api :{api_port} + web :{web_port}"],
+  ["uv run tasks.py db-up", "MySQL via Apple container or Docker (or set APP_DATABASE_URL)"],
+  ["uv run tasks.py seed", "schema, prompts, prices; sign in with APP_ACCESS_KEY (backend/.env)"],
+  ["uv run tasks.py dev", "api :{api_port} + web :{web_port}"],
 ]

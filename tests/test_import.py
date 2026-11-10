@@ -12,7 +12,7 @@ OTHER = cli.Answers(cli.Names("talent-review", "talent_review", "Talent Review")
 
 
 def manifest(repo, name):
-    return tomllib.loads((repo / "templates" / name / cli.MANIFEST).read_text())
+    return tomllib.loads((repo / "templates" / name / cli.MANIFEST).read_text(encoding="utf-8"))
 
 
 def test_a_project_made_by_fstack_round_trips(repo, tmp_path):
@@ -63,15 +63,15 @@ def test_a_repo_fstack_did_not_make(repo, tmp_path, capsys):
     assert spec["install"] == [{"dir": ".", "run": "{pm} install"}]
     assert spec["next"] == [["make help", "what you can run"]]
     assert not (repo / "templates/board/.env").exists()
-    assert (repo / "templates/board/src/app.ts").read_text().startswith('export const TITLE = "Fstack Starter";')
+    assert (repo / "templates/board/src/app.ts").read_text(encoding="utf-8").startswith('export const TITLE = "Fstack Starter";')
 
     dest = tmp_path / "thing"
     assert cli.main(["new", "My Thing", "-t", "board", "--dir", str(dest), "--no-install", "--web-port", "5400"]) == 0
-    assert (dest / "src/app.ts").read_text() == (
+    assert (dest / "src/app.ts").read_text(encoding="utf-8") == (
         'export const TITLE = "My Thing";\nconst KEY = "my-thing:theme";\nclass AcmeBoard {}\n'
     )
-    assert json.loads((dest / "package.json").read_text())["name"] == "@acme/my-thing"
-    assert (dest / "README.md").read_text() == "# My Thing\n\nmake dev  # :5400\n"
+    assert json.loads((dest / "package.json").read_text(encoding="utf-8"))["name"] == "@acme/my-thing"
+    assert (dest / "README.md").read_text(encoding="utf-8") == "# My Thing\n\nmake dev  # :5400\n"
     assert meta(dest)["template"] == "board" and meta(dest)["web_port"] == 5400
 
 
@@ -82,7 +82,7 @@ def test_one_word_names_keep_their_identifiers(repo, tmp_path):
     commit(source, "crm")
 
     assert cli.main(["template", "add", "crm", "--from", str(source)]) == 0
-    assert (repo / "templates/crm/app.py").read_text() == (
+    assert (repo / "templates/crm/app.py").read_text(encoding="utf-8") == (
         'DB = "mysql://x/fstack_starter"\nKEY = "fstack-starter:theme"\nPKG = "fstack-starter-web"\n'
     )
 
@@ -121,11 +121,11 @@ def test_takes_a_branch_tag_or_commit(repo, tmp_path, capsys):
     cases = {"tag": ("v1", str(source)), "branch": ("old", source.as_uri()), "sha": (first, source.as_uri())}
     for name, (ref, where) in cases.items():
         assert cli.main(["template", "add", name, "--from", where, "--ref", ref]) == 0, name
-        assert (repo / "templates" / name / "README.md").read_text() == "# Fstack Starter\n\none\n", name
-    assert f"@ {first[:7]}" in (repo / "templates/sha" / cli.MANIFEST).read_text()
+        assert (repo / "templates" / name / "README.md").read_text(encoding="utf-8") == "# Fstack Starter\n\none\n", name
+    assert f"@ {first[:7]}" in (repo / "templates/sha" / cli.MANIFEST).read_text(encoding="utf-8")
 
     assert cli.main(["template", "add", "latest", "--from", source.as_uri()]) == 0
-    assert (repo / "templates/latest/README.md").read_text() == "# Fstack Starter\n\ntwo\n"
+    assert (repo / "templates/latest/README.md").read_text(encoding="utf-8") == "# Fstack Starter\n\ntwo\n"
 
     capsys.readouterr()
     assert cli.main(["template", "add", "nope", "--from", str(source), "--ref", "missing"]) == 1

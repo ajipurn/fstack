@@ -17,7 +17,7 @@ frontend/  React + Vite + Tailwind v4. src/{app,features,ui,lib,styles}
   (`NotFound`, `Conflict`, `Unprocessable`, `ProviderError`…). One transaction per request.
 - SQL is plain text with `?` placeholders through `db.session.Connection`; every `INSERT`
   lists its columns. Reserved words (`key`, `system`) are back-quoted.
-- Schema changes go through Alembic only (`make revision m="…"`), never `create_all`,
+- Schema changes go through Alembic only (`uv run tasks.py revision "…"`), never `create_all`,
   never edit an applied revision. Tables: InnoDB, utf8mb4_bin, JSON in LONGTEXT,
   ISO timestamps (`stamp()`), uuid ids (`uid()`), integer `revision` for optimistic locks.
 - Auth is one access key (`APP_ACCESS_KEY`): no users, no roles. Protected routes take
@@ -57,5 +57,6 @@ frontend/  React + Vite + Tailwind v4. src/{app,features,ui,lib,styles}
 
 ## Commands
 
-`make setup · db-up · seed · dev · worker · test · lint · check` (see `make help`).
+`uv run tasks.py setup · db-up · seed · dev · worker · test · lint · check` (see
+`uv run tasks.py help`); `make <task>` is the same on macOS/Linux.
 Commits follow Conventional Commits.

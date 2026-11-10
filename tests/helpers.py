@@ -1,10 +1,16 @@
 """A throwaway fstack repo with a tiny template, and projects made from it."""
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from fstack import cli
+
+# Windows files have no x bits, and its symlinks need a privilege and a file-or-folder flag.
+posix_only = pytest.mark.skipif(os.name == "nt", reason="needs POSIX file modes or symlinks")
 
 CONFIG = "".join(f"setting_{i} = {i}\n" for i in range(12))
 PAGE = "".join(f"export const line{i} = {i};\n" for i in range(8))
@@ -49,7 +55,7 @@ def write(root: Path, files: dict[str, str | None]) -> None:
             path.unlink()
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text)
+        path.write_text(text, encoding="utf-8", newline="\n")
 
 
 def commit(cwd: Path, message: str, files: dict[str, str | None] | None = None) -> str:
@@ -83,7 +89,7 @@ def legacy_project(tmp_path: Path, repo: Path, subject: str) -> tuple[Path, cli.
 
 
 def meta(project: Path) -> dict:
-    return json.loads((project / ".fstack.json").read_text())
+    return json.loads((project / ".fstack.json").read_text(encoding="utf-8"))
 
 
 def rendered(text: str) -> str:

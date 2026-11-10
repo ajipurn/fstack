@@ -4,7 +4,7 @@ A prompt listed in OUTPUTS must answer with JSON matching its schema: the schema
 is appended to the system prompt, the reply is validated, and one correction
 round-trip is attempted. Every other prompt returns plain text.
 
-Add a prompt: write `prompts/<key>.md`, run `make seed`; list it here only if
+Add a prompt: write `prompts/<key>.md`, run `uv run tasks.py seed`; list it here only if
 code needs typed data back.
 """
 

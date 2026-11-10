@@ -1,0 +1,2 @@
+# LF on every OS, so `fstack update` merges against the same bytes the template has.
+* text=auto eol=lf

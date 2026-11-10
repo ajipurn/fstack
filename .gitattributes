@@ -1,0 +1,3 @@
+# LF everywhere, Windows included: templates render the bytes they hold, and
+# `fstack update` merges them with what projects have on disk.
+* text=auto eol=lf

@@ -21,6 +21,11 @@ from pathlib import Path
 RENAME_SIMILARITY = 0.5
 RENAME_MIN_LINES = 3
 
+# Windows files have no x bits: os.access(X_OK) is true for any file and chmod only
+# toggles read-only. There, every file counts as not executable on every side, so a mode
+# never shows up as a change.
+HAS_MODES = os.name != "nt"
+
 
 @dataclass(frozen=True)
 class Entry:
@@ -178,10 +183,13 @@ def write(root: Path, rel: str, data: bytes, executable: bool | None = None) -> 
     `executable` sets or clears the x bits; None leaves the mode as it is."""
     target = resolve(root, rel)
     target.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o666)
+    # Windows has no O_NOFOLLOW (resolve() already refused a link leading out) and needs
+    # O_BINARY, or its C runtime turns each \n into \r\n.
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
+    fd = os.open(target, flags, 0o666)
     with open(fd, "wb") as f:
         f.write(data)
-        if executable is not None:
+        if executable is not None and HAS_MODES:
             mode = os.fstat(fd).st_mode
             os.fchmod(fd, mode | 0o111 if executable else mode & ~0o111)
 
