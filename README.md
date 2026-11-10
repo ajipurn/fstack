@@ -72,7 +72,7 @@ This takes the latest `main`. Read [CHANGELOG.md](CHANGELOG.md) for what changed
 To stay on a release instead, install its tag:
 
 ```bash
-uv tool install --force git+https://github.com/ajipurn/fstack@v0.2.0
+uv tool install --force git+https://github.com/ajipurn/fstack@v0.3.0
 ```
 
 `uv tool upgrade` never moves a pinned tag, so take the next release the same way.
@@ -172,7 +172,7 @@ after new template migrations; fstack says so.
 - the answers the project was made with
 
 ```json
-{ "fstack": "0.2.0", "commit": "<fstack git sha>", "template": "default",
+{ "fstack": "0.3.0", "commit": "<fstack git sha>", "template": "default",
   "name": "talent-review", "title": "Talent Review", "api_port": 8410, "web_port": 5510,
   "accent": "#2f3037", "pm": "bun", "pm_version": "1.4.4" }
 ```
