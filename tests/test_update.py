@@ -64,7 +64,10 @@ def test_update_merges_template_changes_into_project_changes(repo, tmp_path):
             "scripts/new-tool.sh": "#!/bin/sh\necho fstack-starter\n",
         },
     )
-    (repo / FULL / "scripts/new-tool.sh").chmod(0o755)
+    if merge.HAS_MODES:
+        (repo / FULL / "scripts/new-tool.sh").chmod(0o755)
+    else:  # Windows files have no x bit for git to see: record it in the index
+        git(repo, "update-index", "--chmod=+x", f"{FULL}/scripts/new-tool.sh")
     head = commit(repo, "make it executable")
 
     assert cli.main(["update", str(project)]) == 0
