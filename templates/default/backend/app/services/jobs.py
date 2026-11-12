@@ -45,7 +45,7 @@ def enqueue(
         raise Unprocessable(f"Unknown job kind '{kind}'.")
     job_id = uid()
     db.execute(
-        "INSERT INTO jobs (id, kind, payload, status, attempts, created_by, created_at)"
+        "INSERT INTO fstack_jobs (id, kind, payload, status, attempts, created_by, created_at)"
         " VALUES (?,?,?,'queued',0,?,?)",
         (job_id, kind, dumps(payload), user_id, stamp()),
     )
@@ -53,14 +53,16 @@ def enqueue(
 
 
 def get(db: Connection, job_id: str) -> dict[str, Any]:
-    row = db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+    row = db.execute("SELECT * FROM fstack_jobs WHERE id=?", (job_id,)).fetchone()
     if not row:
         raise NotFound("Job not found.")
     return public(dict(row))
 
 
 def recent(db: Connection, limit: int = 30) -> list[dict[str, Any]]:
-    rows = db.execute("SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+    rows = db.execute(
+        "SELECT * FROM fstack_jobs ORDER BY created_at DESC LIMIT ?", (limit,)
+    ).fetchall()
     return [public(dict(r)) for r in rows]
 
 
@@ -69,7 +71,7 @@ def cancel(db: Connection, job_id: str) -> dict[str, Any]:
     heartbeat fail, so the run starts no new request or retry and its result is
     discarded (a request already sent finishes — it may be billed)."""
     changed = db.execute(
-        "UPDATE jobs SET status='cancelled', error='Cancelled.', finished_at=?,"
+        "UPDATE fstack_jobs SET status='cancelled', error='Cancelled.', finished_at=?,"
         " lease_token=NULL, lease_until=NULL WHERE id=? AND status IN ('queued','running')",
         (stamp(), job_id),
     ).rowcount
@@ -89,7 +91,7 @@ def retry(db: Connection, actor: dict[str, Any], job_id: str) -> dict[str, Any]:
 
 def expire_leases(db: Connection) -> int:
     return db.execute(
-        "UPDATE jobs SET status='interrupted', error=?, finished_at=?, lease_token=NULL,"
+        "UPDATE fstack_jobs SET status='interrupted', error=?, finished_at=?, lease_token=NULL,"
         " lease_until=NULL WHERE status='running' AND lease_until <= ?",
         (INTERRUPTED, stamp(), time.time()),
     ).rowcount
@@ -97,14 +99,15 @@ def expire_leases(db: Connection) -> int:
 
 def claim(db: Connection) -> tuple[dict[str, Any], str] | None:
     row = db.execute(
-        "SELECT * FROM jobs WHERE status='queued' ORDER BY created_at, id LIMIT 1" + for_update(db)
+        "SELECT * FROM fstack_jobs WHERE status='queued' ORDER BY created_at, id LIMIT 1"
+        + for_update(db)
     ).fetchone()
     if not row:
         return None
     token = uid()
     claimed = db.execute(
-        "UPDATE jobs SET status='running', lease_token=?, lease_until=?, attempts=attempts+1,"
-        " started_at=? WHERE id=? AND status='queued'",
+        "UPDATE fstack_jobs SET status='running', lease_token=?, lease_until=?,"
+        " attempts=attempts+1, started_at=? WHERE id=? AND status='queued'",
         (token, time.time() + LEASE_SECONDS, stamp(), row["id"]),
     ).rowcount
     return (dict(row), token) if claimed else None
@@ -113,7 +116,7 @@ def claim(db: Connection) -> tuple[dict[str, Any], str] | None:
 def heartbeat(db: Connection, job_id: str, token: str) -> bool:
     return bool(
         db.execute(
-            "UPDATE jobs SET lease_until=? WHERE id=? AND status='running' AND lease_token=?"
+            "UPDATE fstack_jobs SET lease_until=? WHERE id=? AND status='running' AND lease_token=?"
             " AND lease_until > ?",
             (time.time() + LEASE_SECONDS, job_id, token, time.time()),
         ).rowcount
@@ -126,7 +129,7 @@ def finish(
     """Fenced write: only the lease holder can record the outcome."""
     return bool(
         db.execute(
-            "UPDATE jobs SET status=?, result=?, error=?, finished_at=?, lease_token=NULL,"
+            "UPDATE fstack_jobs SET status=?, result=?, error=?, finished_at=?, lease_token=NULL,"
             " lease_until=NULL WHERE id=? AND status='running' AND lease_token=?",
             (
                 "failed" if error else "succeeded",
@@ -143,10 +146,10 @@ def finish(
 def worker_status(db: Connection) -> dict[str, Any]:
     cutoff = time.time() - STALE_WORKER_SECONDS
     live = db.execute(
-        "SELECT COUNT(*) FROM worker_heartbeats WHERE last_seen > ?", (cutoff,)
+        "SELECT COUNT(*) FROM fstack_worker_heartbeats WHERE last_seen > ?", (cutoff,)
     ).scalar()
-    queued = db.execute("SELECT COUNT(*) FROM jobs WHERE status='queued'").scalar()
-    running = db.execute("SELECT COUNT(*) FROM jobs WHERE status='running'").scalar()
+    queued = db.execute("SELECT COUNT(*) FROM fstack_jobs WHERE status='queued'").scalar()
+    running = db.execute("SELECT COUNT(*) FROM fstack_jobs WHERE status='running'").scalar()
     return {
         "online": bool(live),
         "workers": int(live or 0),

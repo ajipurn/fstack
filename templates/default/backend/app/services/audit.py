@@ -14,14 +14,14 @@ def record(
     """Dotted action names: prompt.published, provider.tested, provider.updated…
     `actor` is "dashboard", "api", or None for seed/system work."""
     db.execute(
-        "INSERT INTO audit_events (id, actor, entity_id, action, detail, created_at)"
+        "INSERT INTO fstack_audit_events (id, actor, entity_id, action, detail, created_at)"
         " VALUES (?,?,?,?,?,?)",
         (uid(), (actor or {}).get("id"), entity_id, action, dumps(detail or {}), stamp()),
     )
 
 
 def recent(db: Connection, entity_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
-    sql = "SELECT * FROM audit_events"
+    sql = "SELECT * FROM fstack_audit_events"
     values: list[Any] = []
     if entity_id:
         sql += " WHERE entity_id=?"

@@ -6,18 +6,31 @@ the typed reference services and tests use. Conventions:
 - JSON lives in LONGTEXT (`large_text()`), booleans are Integer 0/1
 - every MySQL table: InnoDB, utf8mb4, utf8mb4_bin
 - optimistic locking with an integer `revision`
+- table names start with `fstack_` (new ones too), so the schema can share a database
+  with other apps; Alembic only sees `fstack_*` tables and keeps its revision in
+  `fstack_alembic_version`. CHECK and foreign key names, which MySQL scopes to the
+  whole database, carry the prefix too; index names are per table and keep the bare
+  name (`ix_jobs_status`), as they were before tables had the prefix.
 """
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.mysql import LONGTEXT
 
+PREFIX = "fstack_"
+
+
+def _bare_table(constraint: sa.Constraint, table: sa.Table) -> str:
+    return table.name.removeprefix(PREFIX)
+
+
 metadata = sa.MetaData(
     naming_convention={
-        "ix": "ix_%(table_name)s_%(column_0_name)s",
-        "uq": "uq_%(table_name)s_%(column_0_N_name)s",
+        "bare_table": _bare_table,
+        "ix": "ix_%(bare_table)s_%(column_0_name)s",
+        "uq": "uq_%(bare_table)s_%(column_0_N_name)s",
         "ck": "ck_%(table_name)s_%(constraint_name)s",
         "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-        "pk": "pk_%(table_name)s",
+        "pk": "pk_%(bare_table)s",
     }
 )
 MYSQL = {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_bin"}
@@ -32,7 +45,7 @@ def ts(name: str, nullable: bool = False) -> sa.Column:
 
 
 sessions = sa.Table(
-    "sessions",
+    "fstack_sessions",
     metadata,
     sa.Column("token_hash", sa.String(64), primary_key=True),
     # Fingerprint of the access key that opened it: a new key ends old sessions.
@@ -44,7 +57,7 @@ sessions = sa.Table(
 )
 
 login_attempts = sa.Table(
-    "login_attempts",
+    "fstack_login_attempts",
     metadata,
     sa.Column("id", sa.String(80), primary_key=True),
     sa.Column("ip", sa.String(45), nullable=False),
@@ -54,7 +67,7 @@ login_attempts = sa.Table(
 )
 
 audit_events = sa.Table(
-    "audit_events",
+    "fstack_audit_events",
     metadata,
     sa.Column("id", sa.String(80), primary_key=True),
     sa.Column("actor", sa.String(80), nullable=True),  # dashboard | api | NULL (seed)
@@ -69,7 +82,7 @@ audit_events = sa.Table(
 # ── LLM: providers, prompts ───────────────────────────────────────────────────
 
 providers = sa.Table(
-    "providers",
+    "fstack_providers",
     metadata,
     sa.Column("id", sa.String(80), primary_key=True),
     sa.Column("name", sa.String(160), nullable=False, unique=True),
@@ -98,7 +111,7 @@ providers = sa.Table(
 )
 
 prompts = sa.Table(
-    "prompts",
+    "fstack_prompts",
     metadata,
     sa.Column("key", sa.String(80), primary_key=True),
     sa.Column("name", sa.String(160), nullable=False),
@@ -112,10 +125,10 @@ prompts = sa.Table(
 )
 
 prompt_versions = sa.Table(
-    "prompt_versions",
+    "fstack_prompt_versions",
     metadata,
     sa.Column("id", sa.String(80), primary_key=True),
-    sa.Column("prompt_key", sa.String(80), sa.ForeignKey("prompts.key"), nullable=False),
+    sa.Column("prompt_key", sa.String(80), sa.ForeignKey("fstack_prompts.key"), nullable=False),
     sa.Column("version", sa.Integer(), nullable=False),
     sa.Column("status", sa.String(20), nullable=False),  # draft | published | retired
     sa.Column("system", large_text(), nullable=False),
@@ -146,7 +159,7 @@ prompt_versions = sa.Table(
 # ── Observability ────────────────────────────────────────────────────────────
 
 model_prices = sa.Table(
-    "model_prices",
+    "fstack_model_prices",
     metadata,
     sa.Column("catalog_id", sa.String(80), primary_key=True),
     sa.Column("model_id", sa.String(200), primary_key=True),
@@ -167,7 +180,7 @@ model_prices = sa.Table(
 )
 
 llm_calls = sa.Table(
-    "llm_calls",
+    "fstack_llm_calls",
     metadata,
     sa.Column("id", sa.String(80), primary_key=True),
     sa.Column("provider_id", sa.String(80), nullable=True),
@@ -204,7 +217,7 @@ llm_calls = sa.Table(
 # ── Background jobs (MySQL-leased, no blind replay) ──────────────────────────
 
 jobs = sa.Table(
-    "jobs",
+    "fstack_jobs",
     metadata,
     sa.Column("id", sa.String(80), primary_key=True),
     sa.Column("kind", sa.String(80), nullable=False),
@@ -229,7 +242,7 @@ jobs = sa.Table(
 )
 
 worker_heartbeats = sa.Table(
-    "worker_heartbeats",
+    "fstack_worker_heartbeats",
     metadata,
     sa.Column("id", sa.String(80), primary_key=True),
     sa.Column("host", sa.String(255), nullable=False),

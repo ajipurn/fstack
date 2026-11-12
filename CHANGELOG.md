@@ -9,7 +9,17 @@ or template changes a project has to act on (a migration, a new dependency, a
 
 ### Template (default)
 
-- `model_prices` keeps only the models.dev catalogs in use: the first-party ones (the
+- **Tables start with `fstack_`** (`fstack_llm_calls`, `fstack_prompts`…), so a project can
+  share a database that already has other tables. Alembic keeps its revision in
+  `fstack_alembic_version` and autogenerate only sees `fstack_*` tables, so another app's
+  tables and its own `alembic_version` are left alone. CHECK and foreign key names take the
+  prefix too (MySQL scopes them to the database); index names don't change.
+  - The first `uv run tasks.py migrate` (or `seed`) after `fstack update` renames an
+    existing project's tables, CHECK and foreign keys, and moves its revision out of
+    `alembic_version`. Data stays as it is.
+  - Raw SQL and revisions of your own that name fstack's tables need the new names; tables
+    you added yourself keep theirs.
+- `fstack_model_prices` keeps only the models.dev catalogs in use: the first-party ones (the
   fallback for gateways and "best match" providers) plus each provider's pricing catalog,
   instead of every catalog (~8,000 rows). Saving a provider loads its catalog when it isn't
   there yet; a failed download still saves the provider. The next `uv run tasks.py prices`

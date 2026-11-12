@@ -1,15 +1,31 @@
+import logging
+
 from alembic import context
 from sqlalchemy import text
 
-from app.db.migrations import ensure_database
+from app.db.migrations import VERSION_TABLE, adopt_unprefixed, ensure_database
 from app.db.session import database_url, engine_for
-from app.db.tables import metadata
+from app.db.tables import PREFIX, metadata
 
 config = context.config
 url = config.attributes.get("database_url") or database_url()
+log = logging.getLogger("alembic.env")
+
+
+def include_name(name: str | None, type_: str, parent_names: dict) -> bool:
+    """Autogenerate only sees this backend's tables: other apps' tables in the same
+    database are never dropped or altered."""
+    return type_ != "table" or bool(name and (name.startswith(PREFIX) or name in metadata.tables))
+
+
+options = {
+    "target_metadata": metadata,
+    "version_table": VERSION_TABLE,
+    "include_name": include_name,
+}
 
 if context.is_offline_mode():
-    context.configure(url=url, target_metadata=metadata, literal_binds=True)
+    context.configure(url=url, literal_binds=True, **options)
     with context.begin_transaction():
         context.run_migrations()
 else:
@@ -28,11 +44,11 @@ else:
             if locked != 1:
                 raise RuntimeError("Another migration is running. Retry later.")
         try:
-            context.configure(
-                connection=connection,
-                target_metadata=metadata,
-                compare_type=True,
-            )
+            revisions = {script.revision for script in context.script.walk_revisions()}
+            adopted = adopt_unprefixed(connection, revisions)
+            if adopted:
+                log.warning("schema: renamed %d tables to %s*", len(adopted), PREFIX)
+            context.configure(connection=connection, compare_type=True, **options)
             with context.begin_transaction():
                 context.run_migrations()
             connection.commit()

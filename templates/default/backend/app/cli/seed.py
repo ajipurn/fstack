@@ -39,7 +39,7 @@ def seed_provider() -> None:
     if not settings.bootstrap_provider_kind:
         return
     with transaction() as db:
-        if db.execute("SELECT 1 FROM providers LIMIT 1").fetchone():
+        if db.execute("SELECT 1 FROM fstack_providers LIMIT 1").fetchone():
             say("provider: providers exist, skipped env bootstrap")
             return
         system = {"id": None}

@@ -80,9 +80,9 @@ def _presence(database_url: str, worker_id: str, stop: threading.Event) -> None:
     while not stop.is_set():
         try:
             with transaction(database_url) as db:
-                db.execute("DELETE FROM worker_heartbeats WHERE id=?", (worker_id,))
+                db.execute("DELETE FROM fstack_worker_heartbeats WHERE id=?", (worker_id,))
                 db.execute(
-                    "INSERT INTO worker_heartbeats (id, host, last_seen, started_at)"
+                    "INSERT INTO fstack_worker_heartbeats (id, host, last_seen, started_at)"
                     " VALUES (?,?,?,?)",
                     (worker_id, socket.gethostname()[:255], time.time(), stamp()),
                 )
@@ -90,7 +90,7 @@ def _presence(database_url: str, worker_id: str, stop: threading.Event) -> None:
             log.warning("presence update failed")
         stop.wait(jobs.HEARTBEAT_SECONDS)
     with transaction(database_url) as db:
-        db.execute("DELETE FROM worker_heartbeats WHERE id=?", (worker_id,))
+        db.execute("DELETE FROM fstack_worker_heartbeats WHERE id=?", (worker_id,))
 
 
 def serve(database_url: str, stop: threading.Event, concurrency: int) -> None:

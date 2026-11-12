@@ -217,7 +217,7 @@ Distilled from `pelni-assessment`, `py-new-assessment-center` (bars-dashboard),
     picks the version in use.
   - Rollback.
   - Prompts as code, seeded from `prompts/*.md`.
-- **Observability**: one `llm_calls` row per request with:
+- **Observability**: one `fstack_llm_calls` row per request with:
   - tokens, including cache
   - cost from models.dev rates, including tiers, with a snapshot of the rates
   - latency and prompt version

@@ -17,7 +17,9 @@ shortcut (`uv run tasks.py dev`). `uv run tasks.py help` lists every task.
 `db-up` uses whichever runtime is running, Apple's `container` first (macOS). With Apple
 container every project shares one `mysql` container; with Docker each project runs its
 own from `compose.yaml`. The app connects as root (`APP_DATABASE_URL`) and `uv run tasks.py seed`
-creates the project's database. `fstack new` fills in root's password from
+creates the project's database. It can also share a database that already has other
+tables: every table here starts with `fstack_`, Alembic keeps its revision in
+`fstack_alembic_version`, and migrations never touch tables without the prefix. `fstack new` fills in root's password from
 `DB_ROOT_PASSWORD` (export it once in `~/.zshrc`, or `setx` it on Windows), else `root`; a container `db-up`
 creates gets the same. Force a runtime with `DB_RUNTIME=docker` in the environment; use a
 container with another name via `DB_CONTAINER=…`. `db-down` on Apple container
@@ -46,7 +48,7 @@ result = runs.run_prompt(
     user_id=customer_id,
 )
 result.data        # validated against app.llm.outputs.Summary
-result.cost_usd    # from models.dev rates, frozen on the llm_calls row
+result.cost_usd    # from models.dev rates, frozen on the fstack_llm_calls row
 ```
 
 `temperature` and `max_tokens` are optional; left out, each model keeps its own default
@@ -81,7 +83,7 @@ back on the next `uv run tasks.py seed`.
 
 ## Observability
 
-`llm_calls` holds one row per provider request: tokens (input incl. cache read/write,
+`fstack_llm_calls` holds one row per provider request: tokens (input incl. cache read/write,
 output), `cost_usd`, the rate snapshot used, latency, status and prompt version.
 Prices come from [models.dev](https://models.dev) (`uv run tasks.py prices`), only for the
 catalogs in use: the first-party ones plus each provider's pricing catalog, which loads when
