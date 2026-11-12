@@ -37,7 +37,7 @@ def record(
     keep = get_settings().log_llm_payloads
     call_id = uid()
     db.execute(
-        "INSERT INTO llm_calls (id, provider_id, provider_name, provider_kind, model,"
+        "INSERT INTO fstack_llm_calls (id, provider_id, provider_name, provider_kind, model,"
         " prompt_key, prompt_version_id, prompt_version, prompt_digest, status, error,"
         " input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd, pricing,"
         " latency_ms, source, job_id, user_id, request, response, created_at)"
@@ -94,13 +94,13 @@ def summary(db: Connection, days: int = 30) -> dict[str, Any]:
         " COALESCE(SUM(cache_read_tokens),0) AS cache_read_tokens,"
         " COALESCE(SUM(cost_usd),0) AS cost_usd,"
         " SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced"
-        " FROM llm_calls WHERE created_at >= ?",
+        " FROM fstack_llm_calls WHERE created_at >= ?",
         (since,),
     ).fetchone()
     latencies = [
         r["latency_ms"]
         for r in db.execute(
-            "SELECT latency_ms FROM llm_calls WHERE created_at >= ? AND status='ok'"
+            "SELECT latency_ms FROM fstack_llm_calls WHERE created_at >= ? AND status='ok'"
             " ORDER BY created_at DESC LIMIT 5000",
             (since,),
         ).fetchall()
@@ -112,17 +112,17 @@ def summary(db: Connection, days: int = 30) -> dict[str, Any]:
         " COALESCE(AVG(latency_ms),0) AS avg_latency_ms"
     )
     by_day = db.execute(
-        f"SELECT SUBSTR(created_at, 1, 10) AS day, {group} FROM llm_calls"
+        f"SELECT SUBSTR(created_at, 1, 10) AS day, {group} FROM fstack_llm_calls"
         " WHERE created_at >= ? GROUP BY SUBSTR(created_at, 1, 10) ORDER BY day",
         (since,),
     ).fetchall()
     by_model = db.execute(
-        f"SELECT model, provider_name, {group} FROM llm_calls WHERE created_at >= ?"
+        f"SELECT model, provider_name, {group} FROM fstack_llm_calls WHERE created_at >= ?"
         " GROUP BY model, provider_name ORDER BY cost_usd DESC, calls DESC LIMIT 20",
         (since,),
     ).fetchall()
     by_prompt = db.execute(
-        f"SELECT prompt_key, {group} FROM llm_calls WHERE created_at >= ?"
+        f"SELECT prompt_key, {group} FROM fstack_llm_calls WHERE created_at >= ?"
         " GROUP BY prompt_key ORDER BY cost_usd DESC, calls DESC LIMIT 20",
         (since,),
     ).fetchall()
@@ -184,7 +184,7 @@ def recent(
     sql = (
         "SELECT id, provider_name, provider_kind, model, prompt_key, prompt_version,"
         " status, error, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,"
-        " cost_usd, latency_ms, source, job_id, created_at FROM llm_calls WHERE 1=1"
+        " cost_usd, latency_ms, source, job_id, created_at FROM fstack_llm_calls WHERE 1=1"
     )
     values: list[Any] = []
     if prompt_key:
@@ -203,11 +203,11 @@ def recent(
 
 def clear(db: Connection) -> int:
     """Delete every recorded call (tokens, cost, payloads). Returns how many."""
-    return db.execute("DELETE FROM llm_calls").rowcount
+    return db.execute("DELETE FROM fstack_llm_calls").rowcount
 
 
 def detail(db: Connection, call_id: str) -> dict[str, Any] | None:
-    row = db.execute("SELECT * FROM llm_calls WHERE id=?", (call_id,)).fetchone()
+    row = db.execute("SELECT * FROM fstack_llm_calls WHERE id=?", (call_id,)).fetchone()
     if not row:
         return None
     item = dict(row)

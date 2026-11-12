@@ -27,7 +27,7 @@ def public(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def get_row(db: Connection, provider_id: str) -> dict[str, Any]:
-    row = db.execute("SELECT * FROM providers WHERE id=?", (provider_id,)).fetchone()
+    row = db.execute("SELECT * FROM fstack_providers WHERE id=?", (provider_id,)).fetchone()
     if not row:
         raise NotFound("Provider not found.")
     return dict(row)
@@ -35,14 +35,16 @@ def get_row(db: Connection, provider_id: str) -> dict[str, Any]:
 
 def find_row(db: Connection, ref: str) -> dict[str, Any]:
     """A provider by id or by its name (what application code usually knows)."""
-    row = db.execute("SELECT * FROM providers WHERE id=? OR name=? LIMIT 1", (ref, ref)).fetchone()
+    row = db.execute(
+        "SELECT * FROM fstack_providers WHERE id=? OR name=? LIMIT 1", (ref, ref)
+    ).fetchone()
     if not row:
         raise NotFound(f"Provider '{ref}' not found.")
     return dict(row)
 
 
 def list_providers(db: Connection) -> list[dict[str, Any]]:
-    rows = db.execute("SELECT * FROM providers ORDER BY name").fetchall()
+    rows = db.execute("SELECT * FROM fstack_providers ORDER BY name").fetchall()
     return [public(dict(r)) for r in rows]
 
 
@@ -86,7 +88,7 @@ def create(db: Connection, actor: dict[str, Any], body: ProviderWrite) -> dict[s
     now = stamp()
     try:
         db.execute(
-            "INSERT INTO providers (id, name, kind, protocol, base_url, region, catalog_id,"
+            "INSERT INTO fstack_providers (id, name, kind, protocol, base_url, region, catalog_id,"
             " models, encrypted_secret, secret_hint, enabled, revision, created_at, updated_at)"
             " VALUES (?,?,?,?,?,?,?,?,?,?,?,1,?,?)",
             (
@@ -131,9 +133,9 @@ def update(
     changed = secret is not None or any(row[f] != getattr(body, f) for f in CONNECTION_FIELDS)
     try:
         db.execute(
-            "UPDATE providers SET name=?, kind=?, protocol=?, base_url=?, region=?, catalog_id=?,"
-            " models=?, encrypted_secret=?, secret_hint=?, enabled=?, revision=revision+1,"
-            " updated_at=?"
+            "UPDATE fstack_providers SET name=?, kind=?, protocol=?, base_url=?, region=?,"
+            " catalog_id=?, models=?, encrypted_secret=?, secret_hint=?, enabled=?,"
+            " revision=revision+1, updated_at=?"
             + (", last_test_ok=NULL, last_tested_at=NULL" if changed else "")
             + " WHERE id=? AND revision=?",
             (
@@ -160,7 +162,7 @@ def update(
 
 def delete(db: Connection, actor: dict[str, Any], provider_id: str) -> None:
     get_row(db, provider_id)  # call history keeps the provider's name
-    db.execute("DELETE FROM providers WHERE id=?", (provider_id,))
+    db.execute("DELETE FROM fstack_providers WHERE id=?", (provider_id,))
     audit.record(db, actor, provider_id, "provider.deleted")
 
 
@@ -224,7 +226,7 @@ def save_probe(db: Connection, actor: dict[str, Any], provider_id: str, result: 
     an edit of the connection, so the revision stays (an open editor can still save)."""
     models = ", models=?" if result["ok"] else ""
     db.execute(
-        "UPDATE providers SET last_tested_at=?, last_test_ok=?, last_test_ms=?,"
+        "UPDATE fstack_providers SET last_tested_at=?, last_test_ok=?, last_test_ms=?,"
         f" last_test_message=?{models} WHERE id=?",
         (
             stamp(),

@@ -13,7 +13,7 @@ export function OverviewPage() {
     <>
       <PageHeader
         title="Overview"
-        description="Health, spend and setup at a glance. Everything here is driven by the same llm_calls log."
+        description="Health, spend and setup at a glance. Everything here is driven by the same fstack_llm_calls log."
         actions={
           <Link to="/run" className={buttonClass({ variant: "primary" })}>
             Run a prompt

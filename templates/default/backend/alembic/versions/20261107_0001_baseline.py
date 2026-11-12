@@ -20,7 +20,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     op.create_table(
-        "audit_events",
+        "fstack_audit_events",
         sa.Column("id", sa.String(length=80), nullable=False),
         sa.Column("actor", sa.String(length=80), nullable=True),
         sa.Column("entity_id", sa.String(length=160), nullable=False),
@@ -33,10 +33,13 @@ def upgrade() -> None:
         mysql_engine="InnoDB",
     )
     op.create_index(
-        "ix_audit_events_entity_id", "audit_events", ["entity_id", "created_at"], unique=False
+        "ix_audit_events_entity_id",
+        "fstack_audit_events",
+        ["entity_id", "created_at"],
+        unique=False,
     )
     op.create_table(
-        "jobs",
+        "fstack_jobs",
         sa.Column("id", sa.String(length=80), nullable=False),
         sa.Column("kind", sa.String(length=80), nullable=False),
         sa.Column("payload", sa.Text().with_variant(mysql.LONGTEXT(), "mysql"), nullable=False),
@@ -52,17 +55,17 @@ def upgrade() -> None:
         sa.Column("finished_at", sa.String(length=40), nullable=True),
         sa.CheckConstraint(
             "status IN ('queued','running','succeeded','failed','interrupted','cancelled')",
-            name=op.f("ck_jobs_valid_status"),
+            name=op.f("ck_fstack_jobs_valid_status"),
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_jobs")),
         mysql_charset="utf8mb4",
         mysql_collate="utf8mb4_bin",
         mysql_engine="InnoDB",
     )
-    op.create_index("ix_jobs_lease", "jobs", ["status", "lease_until"], unique=False)
-    op.create_index("ix_jobs_status", "jobs", ["status", "created_at"], unique=False)
+    op.create_index("ix_jobs_lease", "fstack_jobs", ["status", "lease_until"], unique=False)
+    op.create_index("ix_jobs_status", "fstack_jobs", ["status", "created_at"], unique=False)
     op.create_table(
-        "llm_calls",
+        "fstack_llm_calls",
         sa.Column("id", sa.String(length=80), nullable=False),
         sa.Column("task_key", sa.String(length=80), nullable=False),
         sa.Column("provider_id", sa.String(length=80), nullable=True),
@@ -88,17 +91,21 @@ def upgrade() -> None:
         sa.Column("request", sa.Text().with_variant(mysql.LONGTEXT(), "mysql"), nullable=True),
         sa.Column("response", sa.Text().with_variant(mysql.LONGTEXT(), "mysql"), nullable=True),
         sa.Column("created_at", sa.String(length=40), nullable=False),
-        sa.CheckConstraint("status IN ('ok','error')", name=op.f("ck_llm_calls_valid_status")),
+        sa.CheckConstraint(
+            "status IN ('ok','error')", name=op.f("ck_fstack_llm_calls_valid_status")
+        ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_llm_calls")),
         mysql_charset="utf8mb4",
         mysql_collate="utf8mb4_bin",
         mysql_engine="InnoDB",
     )
-    op.create_index("ix_llm_calls_created_at", "llm_calls", ["created_at"], unique=False)
-    op.create_index("ix_llm_calls_model", "llm_calls", ["model", "created_at"], unique=False)
-    op.create_index("ix_llm_calls_task_key", "llm_calls", ["task_key", "created_at"], unique=False)
+    op.create_index("ix_llm_calls_created_at", "fstack_llm_calls", ["created_at"], unique=False)
+    op.create_index("ix_llm_calls_model", "fstack_llm_calls", ["model", "created_at"], unique=False)
+    op.create_index(
+        "ix_llm_calls_task_key", "fstack_llm_calls", ["task_key", "created_at"], unique=False
+    )
     op.create_table(
-        "login_attempts",
+        "fstack_login_attempts",
         sa.Column("id", sa.String(length=80), nullable=False),
         sa.Column("ip", sa.String(length=45), nullable=False),
         sa.Column("attempted_at", sa.Double(), nullable=False),
@@ -107,9 +114,11 @@ def upgrade() -> None:
         mysql_collate="utf8mb4_bin",
         mysql_engine="InnoDB",
     )
-    op.create_index("ix_login_attempts_ip", "login_attempts", ["ip", "attempted_at"], unique=False)
+    op.create_index(
+        "ix_login_attempts_ip", "fstack_login_attempts", ["ip", "attempted_at"], unique=False
+    )
     op.create_table(
-        "model_prices",
+        "fstack_model_prices",
         sa.Column("catalog_id", sa.String(length=80), nullable=False),
         sa.Column("model_id", sa.String(length=200), nullable=False),
         sa.Column("name", sa.String(length=200), server_default="", nullable=False),
@@ -128,9 +137,9 @@ def upgrade() -> None:
         mysql_collate="utf8mb4_bin",
         mysql_engine="InnoDB",
     )
-    op.create_index("ix_model_prices_model_id", "model_prices", ["model_id"], unique=False)
+    op.create_index("ix_model_prices_model_id", "fstack_model_prices", ["model_id"], unique=False)
     op.create_table(
-        "prompts",
+        "fstack_prompts",
         sa.Column("key", sa.String(length=80), nullable=False),
         sa.Column("name", sa.String(length=160), nullable=False),
         sa.Column("description", sa.String(length=500), server_default="", nullable=False),
@@ -144,7 +153,7 @@ def upgrade() -> None:
         mysql_engine="InnoDB",
     )
     op.create_table(
-        "providers",
+        "fstack_providers",
         sa.Column("id", sa.String(length=80), nullable=False),
         sa.Column("name", sa.String(length=160), nullable=False),
         sa.Column("kind", sa.String(length=40), nullable=False),
@@ -167,10 +176,10 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.String(length=40), nullable=False),
         sa.CheckConstraint(
             "kind IN ('openai','anthropic','bedrock','google')",
-            name=op.f("ck_providers_valid_kind"),
+            name=op.f("ck_fstack_providers_valid_kind"),
         ),
         sa.CheckConstraint(
-            "protocol IN ('chat','responses')", name=op.f("ck_providers_valid_protocol")
+            "protocol IN ('chat','responses')", name=op.f("ck_fstack_providers_valid_protocol")
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_providers")),
         sa.UniqueConstraint("name", name=op.f("uq_providers_name")),
@@ -179,7 +188,7 @@ def upgrade() -> None:
         mysql_engine="InnoDB",
     )
     op.create_table(
-        "worker_heartbeats",
+        "fstack_worker_heartbeats",
         sa.Column("id", sa.String(length=80), nullable=False),
         sa.Column("host", sa.String(length=255), nullable=False),
         sa.Column("last_seen", sa.Double(), nullable=False),
@@ -190,7 +199,7 @@ def upgrade() -> None:
         mysql_engine="InnoDB",
     )
     op.create_table(
-        "ai_tasks",
+        "fstack_ai_tasks",
         sa.Column("key", sa.String(length=80), nullable=False),
         sa.Column("name", sa.String(length=160), nullable=False),
         sa.Column("description", sa.String(length=500), server_default="", nullable=False),
@@ -203,20 +212,24 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.String(length=40), nullable=False),
         sa.Column("updated_by", sa.String(length=80), nullable=True),
         sa.ForeignKeyConstraint(
-            ["prompt_key"], ["prompts.key"], name=op.f("fk_ai_tasks_prompt_key_prompts")
+            ["prompt_key"],
+            ["fstack_prompts.key"],
+            name=op.f("fk_fstack_ai_tasks_prompt_key_fstack_prompts"),
         ),
         sa.ForeignKeyConstraint(
-            ["provider_id"], ["providers.id"], name=op.f("fk_ai_tasks_provider_id_providers")
+            ["provider_id"],
+            ["fstack_providers.id"],
+            name=op.f("fk_fstack_ai_tasks_provider_id_fstack_providers"),
         ),
         sa.PrimaryKeyConstraint("key", name=op.f("pk_ai_tasks")),
         mysql_charset="utf8mb4",
         mysql_collate="utf8mb4_bin",
         mysql_engine="InnoDB",
     )
-    op.create_index("ix_ai_tasks_prompt_key", "ai_tasks", ["prompt_key"], unique=False)
-    op.create_index("ix_ai_tasks_provider_id", "ai_tasks", ["provider_id"], unique=False)
+    op.create_index("ix_ai_tasks_prompt_key", "fstack_ai_tasks", ["prompt_key"], unique=False)
+    op.create_index("ix_ai_tasks_provider_id", "fstack_ai_tasks", ["provider_id"], unique=False)
     op.create_table(
-        "prompt_versions",
+        "fstack_prompt_versions",
         sa.Column("id", sa.String(length=80), nullable=False),
         sa.Column("prompt_key", sa.String(length=80), nullable=False),
         sa.Column("version", sa.Integer(), nullable=False),
@@ -243,10 +256,12 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             "status IN ('draft','published','retired')",
-            name=op.f("ck_prompt_versions_valid_status"),
+            name=op.f("ck_fstack_prompt_versions_valid_status"),
         ),
         sa.ForeignKeyConstraint(
-            ["prompt_key"], ["prompts.key"], name=op.f("fk_prompt_versions_prompt_key_prompts")
+            ["prompt_key"],
+            ["fstack_prompts.key"],
+            name=op.f("fk_fstack_prompt_versions_prompt_key_fstack_prompts"),
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_prompt_versions")),
         sa.UniqueConstraint("draft_key", name=op.f("uq_prompt_versions_draft_key")),
@@ -258,7 +273,7 @@ def upgrade() -> None:
         mysql_engine="InnoDB",
     )
     op.create_table(
-        "sessions",
+        "fstack_sessions",
         sa.Column("token_hash", sa.String(length=64), nullable=False),
         sa.Column("key_id", sa.String(length=16), nullable=False),
         sa.Column("csrf_token", sa.String(length=80), nullable=False),
@@ -272,24 +287,24 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("sessions")
-    op.drop_table("prompt_versions")
-    op.drop_index("ix_ai_tasks_provider_id", table_name="ai_tasks")
-    op.drop_index("ix_ai_tasks_prompt_key", table_name="ai_tasks")
-    op.drop_table("ai_tasks")
-    op.drop_table("worker_heartbeats")
-    op.drop_table("providers")
-    op.drop_table("prompts")
-    op.drop_index("ix_model_prices_model_id", table_name="model_prices")
-    op.drop_table("model_prices")
-    op.drop_index("ix_login_attempts_ip", table_name="login_attempts")
-    op.drop_table("login_attempts")
-    op.drop_index("ix_llm_calls_task_key", table_name="llm_calls")
-    op.drop_index("ix_llm_calls_model", table_name="llm_calls")
-    op.drop_index("ix_llm_calls_created_at", table_name="llm_calls")
-    op.drop_table("llm_calls")
-    op.drop_index("ix_jobs_status", table_name="jobs")
-    op.drop_index("ix_jobs_lease", table_name="jobs")
-    op.drop_table("jobs")
-    op.drop_index("ix_audit_events_entity_id", table_name="audit_events")
-    op.drop_table("audit_events")
+    op.drop_table("fstack_sessions")
+    op.drop_table("fstack_prompt_versions")
+    op.drop_index("ix_ai_tasks_provider_id", table_name="fstack_ai_tasks")
+    op.drop_index("ix_ai_tasks_prompt_key", table_name="fstack_ai_tasks")
+    op.drop_table("fstack_ai_tasks")
+    op.drop_table("fstack_worker_heartbeats")
+    op.drop_table("fstack_providers")
+    op.drop_table("fstack_prompts")
+    op.drop_index("ix_model_prices_model_id", table_name="fstack_model_prices")
+    op.drop_table("fstack_model_prices")
+    op.drop_index("ix_login_attempts_ip", table_name="fstack_login_attempts")
+    op.drop_table("fstack_login_attempts")
+    op.drop_index("ix_llm_calls_task_key", table_name="fstack_llm_calls")
+    op.drop_index("ix_llm_calls_model", table_name="fstack_llm_calls")
+    op.drop_index("ix_llm_calls_created_at", table_name="fstack_llm_calls")
+    op.drop_table("fstack_llm_calls")
+    op.drop_index("ix_jobs_status", table_name="fstack_jobs")
+    op.drop_index("ix_jobs_lease", table_name="fstack_jobs")
+    op.drop_table("fstack_jobs")
+    op.drop_index("ix_audit_events_entity_id", table_name="fstack_audit_events")
+    op.drop_table("fstack_audit_events")

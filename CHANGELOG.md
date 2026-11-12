@@ -5,6 +5,26 @@ or template changes a project has to act on (a migration, a new dependency, a
 `.fstack.json` change), and a patch release fixes things. **Template** lists what
 `fstack update` brings into projects made from that template.
 
+## Unreleased
+
+### Template (default)
+
+- **Tables start with `fstack_`** (`fstack_llm_calls`, `fstack_prompts`…), so a project can
+  share a database that already has other tables. Alembic keeps its revision in
+  `fstack_alembic_version` and autogenerate only sees `fstack_*` tables, so another app's
+  tables and its own `alembic_version` are left alone. CHECK and foreign key names take the
+  prefix too (MySQL scopes them to the database); index names don't change.
+  - The first `uv run tasks.py migrate` (or `seed`) after `fstack update` renames an
+    existing project's tables, CHECK and foreign keys, and moves its revision out of
+    `alembic_version`. Data stays as it is.
+  - Raw SQL and revisions of your own that name fstack's tables need the new names; tables
+    you added yourself keep theirs.
+- `fstack_model_prices` keeps only the models.dev catalogs in use: the first-party ones (the
+  fallback for gateways and "best match" providers) plus each provider's pricing catalog,
+  instead of every catalog (~8,000 rows). Saving a provider loads its catalog when it isn't
+  there yet; a failed download still saves the provider. The next `uv run tasks.py prices`
+  (or **Sync from models.dev**) drops catalogs no provider uses.
+
 ## 0.3.0 — 2026-11-10
 
 ### fstack

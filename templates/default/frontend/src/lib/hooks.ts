@@ -78,6 +78,7 @@ export function useSaveProvider() {
       id ? put<Provider>(`/providers/${id}`, { ...body, revision }) : post<Provider>("/providers", body),
     onSuccess: (provider, vars) => {
       refreshConfig();
+      void queryClient.invalidateQueries({ queryKey: ["models"] }); // its catalog's prices load on save
       notify.success(vars.id ? `Saved ${provider.name}` : `Added ${provider.name}`);
     },
   });

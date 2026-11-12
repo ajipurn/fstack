@@ -20,6 +20,9 @@ frontend/  React + Vite + Tailwind v4. src/{app,features,ui,lib,styles}
 - Schema changes go through Alembic only (`uv run tasks.py revision "…"`), never `create_all`,
   never edit an applied revision. Tables: InnoDB, utf8mb4_bin, JSON in LONGTEXT,
   ISO timestamps (`stamp()`), uuid ids (`uid()`), integer `revision` for optimistic locks.
+- Table names start with `fstack_` (new tables too), so the database can be shared with
+  other apps. Alembic only sees `fstack_*` tables and records revisions in
+  `fstack_alembic_version`; CHECK and foreign key names carry the prefix, index names don't.
 - Auth is one access key (`APP_ACCESS_KEY`): no users, no roles. Protected routes take
   `actor: Actor` — `{"id": "dashboard"}` (cookie session) or `{"id": "api"}` (bearer key).
 - New env vars become `Settings` fields (`APP_` prefix) — never read `os.environ` elsewhere.
@@ -40,7 +43,7 @@ frontend/  React + Vite + Tailwind v4. src/{app,features,ui,lib,styles}
 - Only `app/llm/backends.py` knows SDK specifics (llmfy models, timeouts, retries off).
 - Prompts are versioned: draft → published (immutable, SHA-256 digest) → active pointer.
   `prompts/*.md` seeds new prompts; a changed file becomes a *draft* to review in the UI.
-- Every provider request is a row in `llm_calls` (tokens incl. cache, cost_usd, rate
+- Every provider request is a row in `fstack_llm_calls` (tokens incl. cache, cost_usd, rate
   snapshot, latency, prompt version). Cost uses models.dev prices; unknown = NULL
   ("unpriced"), never 0.
 

@@ -96,17 +96,19 @@ def resolve(db: Connection, run: RunPrompt) -> Plan:
         raise Conflict(f"Provider '{provider['name']}' is disabled.")
     if run.prompt_version_id:
         version = db.execute(
-            "SELECT * FROM prompt_versions WHERE id=? AND prompt_key=?",
+            "SELECT * FROM fstack_prompt_versions WHERE id=? AND prompt_key=?",
             (run.prompt_version_id, run.prompt_key),
         ).fetchone()
         if not version:
             raise NotFound("That prompt version doesn't exist.")
     else:
-        if not db.execute("SELECT 1 FROM prompts WHERE `key`=?", (run.prompt_key,)).fetchone():
+        if not db.execute(
+            "SELECT 1 FROM fstack_prompts WHERE `key`=?", (run.prompt_key,)
+        ).fetchone():
             raise NotFound(f"Prompt '{run.prompt_key}' not found.")
         version = db.execute(
-            "SELECT v.* FROM prompts p JOIN prompt_versions v ON v.id = p.active_version_id"
-            " WHERE p.`key`=?",
+            "SELECT v.* FROM fstack_prompts p"
+            " JOIN fstack_prompt_versions v ON v.id = p.active_version_id WHERE p.`key`=?",
             (run.prompt_key,),
         ).fetchone()
         if not version:

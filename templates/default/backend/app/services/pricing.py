@@ -1,8 +1,11 @@
 """Model prices from models.dev (USD per 1M tokens) and per-call cost.
 
-`uv run tasks.py prices` (or the Models page) refreshes `model_prices`. Rows with
-source='manual' are yours and never overwritten. Cost is computed once, at call
-time, and stored on llm_calls with the rates used — history never re-prices.
+`fstack_model_prices` holds only the catalogs in use: the first-party ones (the fallback
+for gateways and "best match" providers) plus each provider's own. `uv run tasks.py
+prices` (or the Models page) refreshes them; saving a provider brings in its catalog
+when it isn't loaded yet. Rows with source='manual' are yours and never overwritten.
+Cost is computed once, at call time, and stored on fstack_llm_calls with the rates used —
+history never re-prices.
 """
 
 import re
@@ -15,7 +18,7 @@ from app.core.config import get_settings
 from app.core.exceptions import ProviderError, Unprocessable
 from app.core.utils import dumps, loads, stamp
 from app.db.session import Connection
-from app.llm.backends import Usage
+from app.llm.backends import DEFAULT_CATALOG, Usage
 
 FIRST_PARTY = ("openai", "anthropic", "google", "amazon-bedrock", "mistral", "xai", "deepseek")
 _BEDROCK_PROFILE = re.compile(r"^(?:us|eu|apac|au|ca|jp|global|us-gov)\.")
@@ -67,7 +70,8 @@ def find_rates(db: Connection, catalog_id: str, model: str) -> Rates | None:
         if not catalog:
             continue
         row = db.execute(
-            "SELECT * FROM model_prices WHERE catalog_id=? AND model_id=?", (catalog, model_id)
+            "SELECT * FROM fstack_model_prices WHERE catalog_id=? AND model_id=?",
+            (catalog, model_id),
         ).fetchone()
         if row and row["input"] is not None:
             return _rates(row)
@@ -78,7 +82,7 @@ def find_rates(db: Connection, catalog_id: str, model: str) -> Rates | None:
         row
         for name in names
         for row in db.execute(
-            "SELECT * FROM model_prices WHERE model_id=? AND input IS NOT NULL", (name,)
+            "SELECT * FROM fstack_model_prices WHERE model_id=? AND input IS NOT NULL", (name,)
         ).fetchall()
     ]
     rows.sort(key=lambda r: (r["catalog_id"] not in FIRST_PARTY, r["catalog_id"]))
@@ -141,10 +145,29 @@ def _number(value: Any) -> float | None:
     return float(value) if value >= 0 else None
 
 
-def catalog_rows(data: dict[str, Any]) -> list[tuple[Any, ...]]:
+def catalogs_in_use(db: Connection) -> set[str]:
+    """First-party catalogs (find_rates falls back to them) and every provider's own."""
+    used = set(FIRST_PARTY)
+    for row in db.execute("SELECT kind, catalog_id FROM fstack_providers").fetchall():
+        used.add(row["catalog_id"] or DEFAULT_CATALOG.get(row["kind"], ""))
+    used.discard("")
+    return used
+
+
+def missing_catalogs(db: Connection) -> set[str]:
+    """Catalogs in use that have no models.dev rows yet."""
+    loaded = db.execute(
+        "SELECT DISTINCT catalog_id FROM fstack_model_prices WHERE source='models.dev'"
+    ).fetchall()
+    return catalogs_in_use(db) - {row["catalog_id"] for row in loaded}
+
+
+def catalog_rows(data: dict[str, Any], catalogs: set[str] | None = None) -> list[tuple[Any, ...]]:
     rows = []
     now = stamp()
     for catalog_id, provider in data.items():
+        if catalogs is not None and catalog_id not in catalogs:
+            continue
         models = (provider or {}).get("models") or {}
         if not isinstance(models, dict):
             continue
@@ -173,21 +196,32 @@ def catalog_rows(data: dict[str, Any]) -> list[tuple[Any, ...]]:
     return rows
 
 
-def sync_catalog(db: Connection, data: dict[str, Any]) -> dict[str, int]:
-    """Replace every models.dev row; keep manual overrides untouched."""
-    rows = catalog_rows(data)
-    if not rows:
-        raise Unprocessable("The models.dev payload had no models.")
+def sync_catalog(
+    db: Connection, data: dict[str, Any], only: set[str] | None = None
+) -> dict[str, int]:
+    """Load models.dev rows for the catalogs in use, replacing the ones there; catalogs
+    no provider uses any more are dropped. `only` loads just those catalogs and leaves
+    the rest alone. Manual overrides are never touched."""
+    rows = catalog_rows(data, catalogs_in_use(db) if only is None else only)
+    if not rows and only is None:
+        raise Unprocessable("The models.dev payload had none of the catalogs in use.")
     manual = {
         (r["catalog_id"], r["model_id"])
         for r in db.execute(
-            "SELECT catalog_id, model_id FROM model_prices WHERE source='manual'"
+            "SELECT catalog_id, model_id FROM fstack_model_prices WHERE source='manual'"
         ).fetchall()
     }
-    db.execute("DELETE FROM model_prices WHERE source='models.dev'")
+    if only is None:
+        db.execute("DELETE FROM fstack_model_prices WHERE source='models.dev'")
+    elif only:
+        db.execute(
+            "DELETE FROM fstack_model_prices WHERE source='models.dev'"
+            f" AND catalog_id IN ({','.join('?' * len(only))})",
+            sorted(only),
+        )
     fresh = [row for row in rows if (row[0], row[1]) not in manual]
     db.executemany(
-        "INSERT INTO model_prices (catalog_id, model_id, name, input, output, cache_read,"
+        "INSERT INTO fstack_model_prices (catalog_id, model_id, name, input, output, cache_read,"
         " cache_write, tiers, context_limit, output_limit, reasoning, source, updated_at)"
         " VALUES (?,?,?,?,?,?,?,?,?,?,?,'models.dev',?)",
         fresh,
@@ -202,9 +236,11 @@ def sync_catalog(db: Connection, data: dict[str, Any]) -> dict[str, int]:
 def set_manual_price(
     db: Connection, catalog_id: str, model_id: str, rates: dict[str, float | None], name: str = ""
 ) -> None:
-    db.execute("DELETE FROM model_prices WHERE catalog_id=? AND model_id=?", (catalog_id, model_id))
     db.execute(
-        "INSERT INTO model_prices (catalog_id, model_id, name, input, output, cache_read,"
+        "DELETE FROM fstack_model_prices WHERE catalog_id=? AND model_id=?", (catalog_id, model_id)
+    )
+    db.execute(
+        "INSERT INTO fstack_model_prices (catalog_id, model_id, name, input, output, cache_read,"
         " cache_write, tiers, context_limit, output_limit, reasoning, source, updated_at)"
         " VALUES (?,?,?,?,?,?,?,NULL,NULL,NULL,0,'manual',?)",
         (
@@ -223,7 +259,7 @@ def set_manual_price(
 def catalog_summary(db: Connection) -> dict[str, Any]:
     row = db.execute(
         "SELECT COUNT(*) AS models, COUNT(DISTINCT catalog_id) AS catalogs,"
-        " MAX(updated_at) AS updated_at FROM model_prices"
+        " MAX(updated_at) AS updated_at FROM fstack_model_prices"
     ).fetchone()
     return dict(row or {"models": 0, "catalogs": 0, "updated_at": None})
 
@@ -232,7 +268,7 @@ def list_catalogs(db: Connection) -> list[dict[str, Any]]:
     return [
         dict(r)
         for r in db.execute(
-            "SELECT catalog_id, COUNT(*) AS models FROM model_prices"
+            "SELECT catalog_id, COUNT(*) AS models FROM fstack_model_prices"
             " GROUP BY catalog_id ORDER BY catalog_id"
         ).fetchall()
     ]
@@ -241,7 +277,7 @@ def list_catalogs(db: Connection) -> list[dict[str, Any]]:
 def search_models(
     db: Connection, catalog_id: str = "", query: str = "", limit: int = 100
 ) -> list[dict[str, Any]]:
-    sql = "SELECT * FROM model_prices WHERE 1=1"
+    sql = "SELECT * FROM fstack_model_prices WHERE 1=1"
     values: list[Any] = []
     if catalog_id:
         sql += " AND catalog_id=?"

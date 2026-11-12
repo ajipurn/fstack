@@ -1,9 +1,22 @@
 import pytest
+from fastapi.testclient import TestClient
 
 from app.db.session import transaction
 from app.llm.backends import Usage, usage_from
 from app.services import pricing
-from tests.conftest import MODELS_DEV
+from tests.conftest import MODELS_DEV, add_provider
+
+GATEWAY = {
+    "gateway-test": {
+        "id": "gateway-test",
+        "models": {"gpt-test-mini": {"id": "gpt-test-mini", "cost": {"input": 0.3, "output": 2.4}}},
+    }
+}
+
+
+def catalogs(database: str) -> set[str]:
+    with transaction(database) as db:
+        return {row["catalog_id"] for row in pricing.list_catalogs(db)}
 
 
 @pytest.fixture()
@@ -20,6 +33,33 @@ def test_sync_keeps_manual_overrides(priced: str) -> None:
         rates = pricing.find_rates(db, "openai", "gpt-test-mini")
     assert result["manual_kept"] == 1
     assert rates and rates.source == "manual" and rates.input == 9.0
+
+
+def test_sync_loads_only_catalogs_in_use(database: str) -> None:
+    with transaction(database) as db:
+        pricing.sync_catalog(db, {**MODELS_DEV, **GATEWAY})
+    assert catalogs(database) == {"openai", "anthropic", "amazon-bedrock"}
+
+
+def test_saving_a_provider_loads_its_catalog(
+    client: TestClient, database: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(pricing, "fetch_catalog", lambda url=None: {**MODELS_DEV, **GATEWAY})
+    add_provider(client, name="Gateway", catalog_id="gateway-test")
+    assert catalogs(database) == {"openai", "anthropic", "amazon-bedrock", "gateway-test"}
+    with transaction(database) as db:
+        assert pricing.find_rates(db, "gateway-test", "gpt-test-mini").input == 0.3
+
+    # A full sync after the provider is gone drops its catalog.
+    provider_id = client.get("/api/providers").json()[0]["id"]
+    assert client.delete(f"/api/providers/{provider_id}").status_code == 204
+    assert client.post("/api/models/sync").status_code == 200
+    assert catalogs(database) == {"openai", "anthropic", "amazon-bedrock"}
+
+
+def test_a_provider_saves_when_prices_cannot_download(client: TestClient, database: str) -> None:
+    add_provider(client, catalog_id="openai")  # conftest keeps models.dev offline
+    assert catalogs(database) == set()
 
 
 def test_lookup_fallbacks(priced: str) -> None:
