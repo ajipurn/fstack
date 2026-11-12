@@ -5,6 +5,16 @@ or template changes a project has to act on (a migration, a new dependency, a
 `.fstack.json` change), and a patch release fixes things. **Template** lists what
 `fstack update` brings into projects made from that template.
 
+## Unreleased
+
+### Template (default)
+
+- `model_prices` keeps only the models.dev catalogs in use: the first-party ones (the
+  fallback for gateways and "best match" providers) plus each provider's pricing catalog,
+  instead of every catalog (~8,000 rows). Saving a provider loads its catalog when it isn't
+  there yet; a failed download still saves the provider. The next `uv run tasks.py prices`
+  (or **Sync from models.dev**) drops catalogs no provider uses.
+
 ## 0.3.0 — 2026-11-10
 
 ### fstack

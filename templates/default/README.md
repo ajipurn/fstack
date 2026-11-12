@@ -83,8 +83,9 @@ back on the next `uv run tasks.py seed`.
 
 `llm_calls` holds one row per provider request: tokens (input incl. cache read/write,
 output), `cost_usd`, the rate snapshot used, latency, status and prompt version.
-Prices come from [models.dev](https://models.dev) (`uv run tasks.py prices`); manual overrides
-survive syncs. Set `APP_LOG_LLM_PAYLOADS=true` to keep rendered prompts and outputs.
+Prices come from [models.dev](https://models.dev) (`uv run tasks.py prices`), only for the
+catalogs in use: the first-party ones plus each provider's pricing catalog, which loads when
+the provider is saved. Manual overrides survive syncs. Set `APP_LOG_LLM_PAYLOADS=true` to keep rendered prompts and outputs.
 **Usage → Clear usage** deletes every recorded call (prompts, providers and prices stay).
 
 ## Layout

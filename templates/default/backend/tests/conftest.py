@@ -9,10 +9,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import get_settings
+from app.core.exceptions import ProviderError
 from app.db.migrations import migrate
 from app.db.session import engine_for, transaction
 from app.llm import backends
-from app.services import prompts
+from app.services import pricing, prompts
 
 ACCESS_KEY = "test-access-key-0123456789-abcdefghij"
 PROMPTS_DIR = Path(__file__).resolve().parents[1] / "prompts"
@@ -29,6 +30,16 @@ def settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setenv("APP_LOG_LLM_PAYLOADS", "true")
     yield
     get_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def offline_prices(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests never download models.dev; saving a provider leaves prices as they are."""
+
+    def offline(url: str | None = None) -> dict:
+        raise ProviderError("models.dev is offline in tests.")
+
+    monkeypatch.setattr(pricing, "fetch_catalog", offline)
 
 
 @pytest.fixture()
