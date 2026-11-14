@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.llm.backends import WORKERS_AI_URL
 from app.llm.templates import check_template, placeholders
 
 
@@ -55,6 +56,12 @@ class ProviderWrite(Model):
             self.base_url = self.base_url.rstrip("/")
             if re.search(r"/(chat/completions|responses|messages)$", self.base_url):
                 raise ValueError("Use the API root as base URL, e.g. https://api.openai.com/v1.")
+            cloudflare = re.match(r"^https?://api\.cloudflare\.com(/|$)", self.base_url, re.I)
+            if self.kind == "openai" and cloudflare and not WORKERS_AI_URL.match(self.base_url):
+                raise ValueError(
+                    "Workers AI's base URL is https://api.cloudflare.com/client/v4/accounts/"
+                    "<account id>/ai/v1, with your 32-character account id."
+                )
         if self.kind == "bedrock" and not re.fullmatch(r"[a-z]{2}(-[a-z]+)+-\d", self.region):
             raise ValueError("Bedrock needs an AWS region such as us-east-1.")
         if self.kind != "openai":

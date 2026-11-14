@@ -28,8 +28,8 @@ stops the shared container for every project.
 Sign in with `APP_ACCESS_KEY` from `backend/.env`, then:
 
 1. **Configure → Providers**: connect OpenAI, Anthropic, Bedrock (Converse or Mantle),
-   Gemini, or any OpenAI-compatible URL (OpenRouter, Groq, vLLM, Ollama). Adding one tests
-   it and loads its model list.
+   Gemini, Cloudflare Workers AI (account id + API token), or any OpenAI-compatible URL
+   (OpenRouter, Groq, vLLM, Ollama). Adding one tests it and loads its model list.
 2. **Run**: pick a prompt, a provider and a model (temperature and max output tokens
    optional). This page is the project's own: add its inputs and output in
    `frontend/src/features/run/RunPage.tsx` and run with `useRun()`. **Usage** shows

@@ -36,12 +36,19 @@ const MANTLE_HOST = /^https:\/\/bedrock-mantle\.([a-z0-9-]+)\.api\.aws(?=\/|$)/;
 const mantleUrl = (region: string) => `https://bedrock-mantle.${region || "us-east-1"}.api.aws/v1`;
 const isMantle = (p: { kind: ProviderKind; base_url: string }) => p.kind === "openai" && MANTLE_HOST.test(p.base_url);
 
+// Cloudflare Workers AI is OpenAI-compatible at a URL that carries the account id.
+// It is stored as an "openai" provider and edited here by account id.
+const WORKERS_AI_URL = /^https:\/\/api\.cloudflare\.com\/client\/v4\/accounts\/([0-9a-f]{32})\/ai\/v1$/i;
+const workersAiUrl = (account: string) => `https://api.cloudflare.com/client/v4/accounts/${account.trim()}/ai/v1`;
+const isWorkersAi = (p: { kind: ProviderKind; base_url: string }) => p.kind === "openai" && WORKERS_AI_URL.test(p.base_url);
+
 type Preset = { id: string; label: string; form: Partial<Form> };
 const PRESETS: Preset[] = [
   { id: "openai", label: "OpenAI", form: { kind: "openai", base_url: "", catalog_id: "openai" } },
   { id: "anthropic", label: "Anthropic", form: { kind: "anthropic", base_url: "", catalog_id: "anthropic" } },
   { id: "bedrock", label: "Bedrock", form: { kind: "bedrock", region: "us-east-1", catalog_id: "amazon-bedrock" } },
   { id: "google", label: "Gemini", form: { kind: "google", catalog_id: "google" } },
+  { id: "workers-ai", label: "Workers AI", form: { kind: "cloudflare", catalog_id: "cloudflare-workers-ai" } },
   { id: "openrouter", label: "OpenRouter", form: { kind: "openai", base_url: "https://openrouter.ai/api/v1", catalog_id: "openrouter" } },
   { id: "ollama", label: "Ollama", form: { kind: "openai", base_url: "http://127.0.0.1:11434/v1", catalog_id: "" } },
 ];
@@ -51,9 +58,12 @@ const CARD_MODELS = 8;
 
 type Form = {
   name: string;
-  kind: ProviderKind;
+  /** "cloudflare" is Workers AI: saved as kind "openai" with the account's URL. */
+  kind: ProviderKind | "cloudflare";
   /** Only for kind "bedrock": Converse (AWS credentials) or Mantle (OpenAI-compatible). */
   bedrock_api: BedrockApi;
+  /** Only for kind "cloudflare": the account id in the Workers AI URL. */
+  account_id: string;
   protocol: "chat" | "responses";
   base_url: string;
   region: string;
@@ -70,6 +80,7 @@ const EMPTY: Form = {
   name: "OpenAI",
   kind: "openai",
   bedrock_api: "converse",
+  account_id: "",
   protocol: "chat",
   base_url: "",
   region: "",
@@ -87,9 +98,13 @@ function toInput(form: Form): ProviderInput {
   const mantle = form.kind === "bedrock" && form.bedrock_api === "mantle";
   return {
     name: form.name,
-    kind: mantle ? "openai" : form.kind,
+    kind: mantle || form.kind === "cloudflare" ? "openai" : form.kind,
     protocol: form.protocol,
-    base_url: converse ? "" : form.base_url.trim().replace(/\/+$/, ""),
+    base_url: converse
+      ? ""
+      : form.kind === "cloudflare"
+        ? workersAiUrl(form.account_id)
+        : form.base_url.trim().replace(/\/+$/, ""),
     region: form.region,
     catalog_id: form.catalog_id,
     enabled: form.enabled,
@@ -105,8 +120,9 @@ function fromProvider(p: Provider): Form {
   return {
     ...EMPTY,
     name: p.name,
-    kind: mantle ? "bedrock" : p.kind,
+    kind: mantle ? "bedrock" : isWorkersAi(p) ? "cloudflare" : p.kind,
     bedrock_api: mantle ? "mantle" : "converse",
+    account_id: p.base_url.match(WORKERS_AI_URL)?.[1] ?? "",
     protocol: p.protocol,
     base_url: p.base_url,
     region: p.region || (mantle ? (p.base_url.match(MANTLE_HOST)?.[1] ?? "") : ""),
@@ -135,7 +151,8 @@ export function ProvidersPage() {
       ) : !providers.data?.length ? (
         <Panel>
           <Empty icon={<PlugConnection />} title="No providers yet" action={<Button onClick={() => setEditing("new")}>Add provider</Button>}>
-            Connect OpenAI, Anthropic, Bedrock, Gemini — or any OpenAI-compatible endpoint like OpenRouter or Ollama.
+            Connect OpenAI, Anthropic, Bedrock, Gemini, Workers AI — or any OpenAI-compatible endpoint like OpenRouter or
+            Ollama.
           </Empty>
         </Panel>
       ) : (
@@ -216,7 +233,7 @@ function ProviderCard({ provider: p, onEdit }: { provider: Provider; onEdit: () 
       bodyClassName="p-4 space-y-3"
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-        <span className="font-medium text-ink-2">{isMantle(p) ? "Amazon Bedrock · Mantle" : KIND_LABEL[p.kind]}</span>
+        <span className="font-medium text-ink-2">{isMantle(p) ? "Amazon Bedrock · Mantle" : isWorkersAi(p) ? "Cloudflare Workers AI" : KIND_LABEL[p.kind]}</span>
         {p.kind === "openai" && p.protocol === "responses" && <span>· Responses API</span>}
         {p.region && <span>· {p.region}</span>}
         <span>· prices from {p.catalog_id || "best match"}</span>
@@ -267,7 +284,7 @@ function ProviderDialog({ provider, onClose }: { provider: Provider | null; onCl
   const input = toInput(form);
   // A loaded model list belongs to the endpoint it came from.
   const set = <K extends keyof Form>(key: K, value: Form[K]) =>
-    setForm((f) => ({ ...f, [key]: value, ...(key === "base_url" ? { models: [] } : {}) }));
+    setForm((f) => ({ ...f, [key]: value, ...(key === "base_url" || key === "account_id" ? { models: [] } : {}) }));
   const loadModels = () =>
     probe.mutate(
       { ...input, provider_id: provider?.id },
@@ -373,6 +390,29 @@ function ProviderDialog({ provider, onClose }: { provider: Provider | null; onCl
               </Field>
             </>
           )}
+          {form.kind === "cloudflare" && (
+            <>
+              <Field label="Account ID" hint="Dashboard → Workers AI → REST API">
+                <Input
+                  className="mono"
+                  value={form.account_id}
+                  placeholder="32 hex characters"
+                  onChange={(e) => set("account_id", e.target.value.trim())}
+                />
+              </Field>
+              <Field label="Protocol" hint="Responses: gpt-oss models only">
+                <Segmented
+                  aria-label="Protocol"
+                  value={form.protocol}
+                  onChange={(v) => set("protocol", v)}
+                  options={[
+                    { value: "chat", label: "Chat" },
+                    { value: "responses", label: "Responses" },
+                  ]}
+                />
+              </Field>
+            </>
+          )}
           {form.kind === "anthropic" && (
             <Field label="Base URL" hint="Blank = api.anthropic.com" className="col-span-2">
               <Input className="mono" value={form.base_url} onChange={(e) => set("base_url", e.target.value)} />
@@ -435,13 +475,17 @@ function ProviderDialog({ provider, onClose }: { provider: Provider | null; onCl
               </Field>
             </>
           ) : (
-            <Field label="API key" hint={keepHint} className="col-span-2">
+            <Field
+              label={form.kind === "cloudflare" ? "API token" : "API key"}
+              hint={keepHint ?? (form.kind === "cloudflare" ? "Permissions: Workers AI Read + Edit" : undefined)}
+              className="col-span-2"
+            >
               <Input
                 type="password"
                 autoComplete="off"
                 className="mono"
                 value={form.api_key}
-                placeholder={provider?.secret_configured ? "••••••••" : "sk-…"}
+                placeholder={provider?.secret_configured ? "••••••••" : form.kind === "cloudflare" ? "Workers AI token" : "sk-…"}
                 onChange={(e) => set("api_key", e.target.value)}
               />
             </Field>

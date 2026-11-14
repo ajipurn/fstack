@@ -30,7 +30,7 @@ from pydantic import BaseModel
 from app.core.exceptions import Cancelled, Conflict, NotFound, ProviderError, Unprocessable
 from app.db.session import Connection, transaction
 from app.llm import output as structured
-from app.llm.backends import DEFAULT_CATALOG, ModelSpec, Usage
+from app.llm.backends import ModelSpec, Usage, default_catalog
 from app.llm.client import CallFailed, Completion, complete
 from app.llm.outputs import OUTPUTS
 from app.llm.templates import as_text, missing, placeholders, render
@@ -113,7 +113,7 @@ def resolve(db: Connection, run: RunPrompt) -> Plan:
         ).fetchone()
         if not version:
             raise Unprocessable(f"Prompt '{run.prompt_key}' has no active version. Publish one.")
-    catalog_id = provider["catalog_id"] or DEFAULT_CATALOG.get(provider["kind"], "")
+    catalog_id = provider["catalog_id"] or default_catalog(provider["kind"], provider["base_url"])
     rates = pricing.find_rates(db, catalog_id, run.model)
     max_tokens = run.max_tokens
     if max_tokens is None and provider["kind"] == "anthropic":

@@ -18,7 +18,7 @@ from app.core.config import get_settings
 from app.core.exceptions import ProviderError, Unprocessable
 from app.core.utils import dumps, loads, stamp
 from app.db.session import Connection
-from app.llm.backends import DEFAULT_CATALOG, Usage
+from app.llm.backends import Usage, default_catalog
 
 FIRST_PARTY = ("openai", "anthropic", "google", "amazon-bedrock", "mistral", "xai", "deepseek")
 _BEDROCK_PROFILE = re.compile(r"^(?:us|eu|apac|au|ca|jp|global|us-gov)\.")
@@ -148,8 +148,8 @@ def _number(value: Any) -> float | None:
 def catalogs_in_use(db: Connection) -> set[str]:
     """First-party catalogs (find_rates falls back to them) and every provider's own."""
     used = set(FIRST_PARTY)
-    for row in db.execute("SELECT kind, catalog_id FROM fstack_providers").fetchall():
-        used.add(row["catalog_id"] or DEFAULT_CATALOG.get(row["kind"], ""))
+    for row in db.execute("SELECT kind, base_url, catalog_id FROM fstack_providers").fetchall():
+        used.add(row["catalog_id"] or default_catalog(row["kind"], row["base_url"]))
     used.discard("")
     return used
 
