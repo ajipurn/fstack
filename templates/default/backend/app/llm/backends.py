@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass, replace
 from typing import Any
 
+import httpx
 import llmfy
 from llmfy.llmfy_core.llms.base_ai_model import BaseAIModel
 
@@ -20,6 +21,13 @@ _NOT_TEXT = re.compile(
 )
 MAX_MODELS = 2000
 
+# Cloudflare Workers AI is served as an "openai" provider at this URL. Its
+# OpenAI-compatible API has no /models; the catalog is the account's model search.
+WORKERS_AI_URL = re.compile(
+    r"^(https://api\.cloudflare\.com/client/v4/accounts/[0-9a-f]{32}/ai)/v1$", re.IGNORECASE
+)
+_WORKERS_AI_PAGE = 50
+
 # models.dev provider ids used for pricing when the provider row leaves catalog_id empty.
 DEFAULT_CATALOG = {
     "openai": "openai",
@@ -27,6 +35,13 @@ DEFAULT_CATALOG = {
     "bedrock": "amazon-bedrock",
     "google": "google",
 }
+
+
+def default_catalog(kind: str, base_url: str = "") -> str:
+    """Pricing catalog for a provider row whose catalog_id is blank."""
+    if kind == "openai" and WORKERS_AI_URL.match(base_url):
+        return "cloudflare-workers-ai"
+    return DEFAULT_CATALOG.get(kind, "")
 
 
 @dataclass(frozen=True)
@@ -178,7 +193,9 @@ def model_ids(spec: ModelSpec) -> list[str]:
     key only ever goes to the endpoint it was saved for.
     """
     listing = replace(spec, model=spec.model or "list-models")  # SDK wrappers want a name
-    if spec.kind == "openai":
+    if spec.kind == "openai" and (workers_ai := WORKERS_AI_URL.match(spec.base_url)):
+        ids = _workers_ai_model_ids(spec, workers_ai.group(1))
+    elif spec.kind == "openai":
         ids = [m.id for m in _openai(listing).client.models.list()]  # type: ignore[attr-defined]
         ids = [i for i in ids if not _NOT_TEXT.search(i)]
     elif spec.kind == "anthropic":
@@ -225,6 +242,56 @@ def _bedrock_model_ids(spec: ModelSpec) -> list[str]:
         if active and "ON_DEMAND" in summary.get("inferenceTypesSupported", []):
             ids.append(summary["modelId"])
     return ids
+
+
+def _http_client(spec: ModelSpec) -> httpx.Client:
+    return httpx.Client(timeout=spec.timeout)
+
+
+def _workers_ai_model_ids(spec: ModelSpec, root: str) -> list[str]:
+    """Text Generation models in the account's catalog (same host and account as runs)."""
+    headers = {"Authorization": f"Bearer {_required_key(spec)}"}
+    ids: list[str] = []
+    with _http_client(spec) as http:
+        for page in range(1, MAX_MODELS // _WORKERS_AI_PAGE + 1):
+            response = http.get(
+                f"{root}/models/search",
+                params={"page": page, "per_page": _WORKERS_AI_PAGE},
+                headers=headers,
+            )
+            try:
+                body = response.json()
+            except ValueError:
+                body = None
+            body = body if isinstance(body, dict) else {}
+            if response.is_error or not body.get("success"):
+                errors = "; ".join(
+                    str(e.get("message", ""))
+                    for e in body.get("errors") or []
+                    if isinstance(e, dict)
+                )
+                raise _workers_ai_error(response.status_code, errors or response.reason_phrase)
+            models = body.get("result") or []
+            for m in models:
+                task = str((m.get("task") or {}).get("name", "")).lower().replace("-", " ")
+                if task == "text generation" and m.get("name"):
+                    ids.append(m["name"])
+            if len(models) < _WORKERS_AI_PAGE:
+                break
+    return ids
+
+
+def _workers_ai_error(status: int, detail: str) -> Exception:
+    """The llmfy exception a generation failure would raise, so errors.py words it alike."""
+    message = f"Workers AI answered {status}: {detail}"
+    # A bad token is a 400 "Authentication failed" as well as a 401.
+    if status in (401, 403) or "authentic" in detail.lower():
+        return llmfy.AuthenticationException(message, status_code=status)
+    if status == 429:
+        return llmfy.RateLimitException(message, status_code=status)
+    if status >= 500:
+        return llmfy.ServiceUnavailableException(message, status_code=status)
+    return llmfy.InvalidRequestException(message, status_code=status)
 
 
 def usage_from(details: list[dict[str, Any]], kind: str) -> Usage:

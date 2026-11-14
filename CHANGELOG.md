@@ -24,6 +24,13 @@ or template changes a project has to act on (a migration, a new dependency, a
   instead of every catalog (~8,000 rows). Saving a provider loads its catalog when it isn't
   there yet; a failed download still saves the provider. The next `uv run tasks.py prices`
   (or **Sync from models.dev**) drops catalogs no provider uses.
+- **Cloudflare Workers AI provider.** A **Workers AI** preset on Configure → Providers takes
+  the account id and an API token (Workers AI Read + Edit). It is stored as an
+  OpenAI-compatible provider at `https://api.cloudflare.com/client/v4/accounts/<id>/ai/v1`
+  (Chat Completions, or Responses for gpt-oss), so there is no migration. **Load models**
+  lists the account's Text Generation models through Cloudflare's model search (Workers AI
+  has no `/models`), and calls are priced from the `cloudflare-workers-ai` catalog, also
+  when the provider's pricing catalog is left blank.
 
 ## 0.3.0 — 2026-11-10
 

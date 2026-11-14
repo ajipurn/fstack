@@ -75,7 +75,7 @@ function SetupChecklist() {
     {
       done: (providers.data ?? []).some((p) => p.enabled && p.secret_configured),
       label: "Connect a provider",
-      hint: "OpenAI, Anthropic, Bedrock, Gemini or any OpenAI-compatible URL",
+      hint: "OpenAI, Anthropic, Bedrock, Gemini, Workers AI or any OpenAI-compatible URL",
       to: "/configure/providers",
     },
     {

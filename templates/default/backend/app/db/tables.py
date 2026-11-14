@@ -87,7 +87,8 @@ providers = sa.Table(
     sa.Column("id", sa.String(80), primary_key=True),
     sa.Column("name", sa.String(160), nullable=False, unique=True),
     # openai | anthropic | bedrock | google. "openai" also covers every
-    # OpenAI-compatible endpoint (OpenRouter, Groq, vLLM, Ollama, Bedrock Mantle…).
+    # OpenAI-compatible endpoint (OpenRouter, Groq, vLLM, Ollama, Bedrock Mantle,
+    # Cloudflare Workers AI…).
     sa.Column("kind", sa.String(40), nullable=False),
     sa.Column("protocol", sa.String(40), nullable=False, server_default="chat"),
     sa.Column("base_url", sa.String(500), nullable=False, server_default=""),

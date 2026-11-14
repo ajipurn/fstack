@@ -110,7 +110,7 @@ export function RunPage() {
   if (!enabled.length) {
     return (
       <Empty title="No providers yet" action={<Link to="/configure/providers" className={buttonClass({})}>Add a provider</Link>}>
-        Connect OpenAI, Anthropic, Bedrock, Gemini or any OpenAI-compatible endpoint first.
+        Connect OpenAI, Anthropic, Bedrock, Gemini, Workers AI or any OpenAI-compatible endpoint first.
       </Empty>
     );
   }

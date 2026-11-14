@@ -8,7 +8,7 @@ from app.core.config import get_settings
 from app.core.exceptions import Conflict, InternalError, NotFound, Unprocessable
 from app.core.utils import dumps, loads, stamp, uid
 from app.db.session import Connection, IntegrityError
-from app.llm.backends import DEFAULT_CATALOG, ModelSpec
+from app.llm.backends import ModelSpec, default_catalog
 from app.llm.client import CallFailed, list_models
 from app.schemas.models import ProviderProbe, ProviderUpdate, ProviderWrite
 from app.services import audit
@@ -22,7 +22,7 @@ def public(row: dict[str, Any]) -> dict[str, Any]:
     item["enabled"] = bool(row["enabled"])
     item["secret_configured"] = bool(row["encrypted_secret"])
     item["last_test_ok"] = None if row["last_test_ok"] is None else bool(row["last_test_ok"])
-    item["catalog_id"] = row["catalog_id"] or DEFAULT_CATALOG.get(row["kind"], "")
+    item["catalog_id"] = row["catalog_id"] or default_catalog(row["kind"], row["base_url"])
     return item
 
 
