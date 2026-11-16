@@ -15,6 +15,7 @@ export {
   Kbd,
   PageHeader,
   Panel,
+  SectionHeader,
   Skeleton,
   Spinner,
   type Tone,

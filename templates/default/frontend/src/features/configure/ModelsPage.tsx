@@ -2,7 +2,7 @@ import { ArrowsRotateRight, Magnifier } from "@gravity-ui/icons";
 import { useDeferredValue, useState } from "react";
 import { ago, perMillion, tokens } from "../../lib/format";
 import { useModels, useSyncPrices } from "../../lib/hooks";
-import { Button, Chip, cn, Empty, PageHeader, Panel, Select, Skeleton } from "../../ui";
+import { Button, Chip, cn, Empty, PageHeader, Panel, SectionHeader, Select, Skeleton } from "../../ui";
 
 export function ModelsPage() {
   const [query, setQuery] = useState("");
@@ -28,18 +28,11 @@ export function ModelsPage() {
           </Button>
         }
       />
-      <Panel
-        title={
-          summary ? (
-            <span>
-              {summary.models.toLocaleString()} models · {summary.catalogs} catalogs · updated {ago(summary.updated_at)}
-            </span>
-          ) : (
-            "Catalog"
-          )
-        }
+      <SectionHeader
+        title="Catalog"
+        meta={summary ? `${summary.models.toLocaleString()} models · ${summary.catalogs} catalogs · updated ${ago(summary.updated_at)}` : undefined}
         actions={
-          <div className="flex items-center gap-2">
+          <>
             <div className="w-44">
               <Select
                 size="sm"
@@ -56,9 +49,10 @@ export function ModelsPage() {
               <Magnifier className="size-3.5 text-faint" />
               <input className="control-inner" placeholder="Search models" value={query} onChange={(e) => setQuery(e.target.value)} />
             </label>
-          </div>
+          </>
         }
-      >
+      />
+      <Panel>
         {models.isPending ? (
           <Skeleton className="m-4 h-48" />
         ) : !summary?.models ? (

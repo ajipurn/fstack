@@ -27,10 +27,12 @@ stops the shared container for every project.
 
 Sign in with `APP_ACCESS_KEY` from `backend/.env`, then:
 
-1. **Configure → Providers**: connect OpenAI, Anthropic, Bedrock (Converse or Mantle),
-   Gemini, Cloudflare Workers AI (account id + API token), or any OpenAI-compatible URL
-   (OpenRouter, Groq, vLLM, Ollama). Adding one tests it and loads its model list.
-2. **Run**: pick a prompt, a provider and a model (temperature and max output tokens
+1. **Configure → Providers**: connect OpenAI (or an OpenAI-compatible URL), Anthropic,
+   Bedrock (Converse or Mantle), Gemini or Cloudflare Workers AI (account id + API token).
+   Adding one tests it and loads its model list.
+2. **Prompts**: a new project has none. Create one here, or add `backend/prompts/<key>.md`
+   and run `uv run tasks.py seed`.
+3. **Run**: pick a prompt, a provider and a model (temperature and max output tokens
    optional). This page is the project's own: add its inputs and output in
    `frontend/src/features/run/RunPage.tsx` and run with `useRun()`. **Usage** shows
    tokens, cost and latency per call.
@@ -41,13 +43,13 @@ Sign in with `APP_ACCESS_KEY` from `backend/.env`, then:
 from app.services import runs
 
 result = runs.run_prompt(
-    "summarize",
+    "summarize",                # a prompt key from Prompts
     {"text": body, "audience": "the board"},
     provider="OpenAI",          # a provider's name (or id) from Configure → Providers
     model="gpt-5.4-mini",
     user_id=customer_id,
 )
-result.data        # validated against app.llm.outputs.Summary
+result.data        # typed JSON if the prompt is listed in app.llm.outputs, else text
 result.cost_usd    # from models.dev rates, frozen on the fstack_llm_calls row
 ```
 
@@ -57,8 +59,7 @@ result.cost_usd    # from models.dev rates, frozen on the fstack_llm_calls row
 overload, refused connections — with exponential backoff; timeouts are never retried.
 In the dashboard, `useRun()` gives `stop()` (no new request or retry starts; one already
 sent finishes and is recorded) and `retry()`; jobs have cancel and retry too.
-Add a prompt: write `backend/prompts/<key>.md` and run `uv run tasks.py seed`; list it in
-`backend/app/llm/outputs.py` only if code needs typed JSON back. Long work:
+List a prompt in `backend/app/llm/outputs.py` only if code needs typed JSON back. Long work:
 `jobs.enqueue(db, "llm.run", {"prompt_key": …, "provider_id": …, "model": …, "variables": {…}})`.
 
 ## Access
@@ -86,8 +87,8 @@ back on the next `uv run tasks.py seed`.
 `fstack_llm_calls` holds one row per provider request: tokens (input incl. cache read/write,
 output), `cost_usd`, the rate snapshot used, latency, status and prompt version.
 Prices come from [models.dev](https://models.dev) (`uv run tasks.py prices`), only for the
-catalogs in use: the first-party ones plus each provider's pricing catalog, which loads when
-the provider is saved. Manual overrides survive syncs. Set `APP_LOG_LLM_PAYLOADS=true` to keep rendered prompts and outputs.
+catalogs in use: OpenAI, Anthropic, Google, Bedrock and Workers AI, plus each provider's
+pricing catalog, which loads when the provider is saved. Manual overrides survive syncs. Set `APP_LOG_LLM_PAYLOADS=true` to keep rendered prompts and outputs.
 **Usage → Clear usage** deletes every recorded call (prompts, providers and prices stay).
 
 ## Layout

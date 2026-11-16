@@ -57,6 +57,29 @@ export function PageHeader({
   );
 }
 
+/** Title and controls above a section, outside its panel (tables have no panel head). */
+export function SectionHeader({
+  title,
+  meta,
+  actions,
+  className,
+}: {
+  title: ReactNode;
+  meta?: ReactNode;
+  actions?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("section-head", className)}>
+      <div className="flex min-w-0 items-baseline gap-2">
+        <h2 className="section-title truncate">{title}</h2>
+        {meta && <span className="truncate text-xs text-muted">{meta}</span>}
+      </div>
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    </div>
+  );
+}
+
 export type Tone = "neutral" | "ok" | "warn" | "danger" | "info" | "accent";
 
 export function Chip({

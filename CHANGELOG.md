@@ -31,6 +31,20 @@ or template changes a project has to act on (a migration, a new dependency, a
   lists the account's Text Generation models through Cloudflare's model search (Workers AI
   has no `/models`), and calls are priced from the `cloudflare-workers-ai` catalog, also
   when the provider's pricing catalog is left blank.
+- **No example prompts.** `backend/prompts/rewrite.md` and `summarize.md` and the `Summary`
+  output are gone, so a new project starts with an empty Prompts page. `fstack update`
+  removes the two files where you left them unchanged; prompts already in the database
+  stay. Keep `summarize` structured by listing your own model in `app/llm/outputs.py`.
+- **Five pricing catalogs by default**: OpenAI, Anthropic, Google, Bedrock and Cloudflare
+  Workers AI (Mistral, xAI and DeepSeek are no longer loaded unless a provider uses them).
+  The next `uv run tasks.py prices` drops the ones no provider uses.
+- The **OpenRouter** and **Ollama** presets are gone from Configure → Providers; the OpenAI
+  preset still takes any OpenAI-compatible URL.
+- The Overview page drops the **Setup** checklist; the spend chart takes the full width.
+- Tables (latest requests, usage requests, models) no longer sit under a panel header:
+  their title and filters are a `SectionHeader` above the panel.
+- **Sound is off by default.** The account menu's **Enable sounds** turns it on, and the
+  choice is remembered per browser.
 
 ## 0.3.0 — 2026-11-10
 

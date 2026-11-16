@@ -168,6 +168,15 @@ a.crumb:hover {
   color: var(--muted);
   font-size: var(--text-sm);
 }
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  min-height: 2rem;
+  margin-bottom: 0.5rem;
+}
 .section-title {
   font-size: var(--text-md);
   font-weight: 600;

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { count, ms, percent, shortDay, tokens, usd } from "../../lib/format";
 import { useCalls, useClearUsage, usePrompts, useUsage } from "../../lib/hooks";
 import type { UsageSummary } from "../../lib/types";
-import { BarChart, Button, Chip, ConfirmDialog, Meter, PageHeader, Panel, Segmented, Select, Stat } from "../../ui";
+import { BarChart, Button, Chip, ConfirmDialog, Meter, PageHeader, Panel, SectionHeader, Segmented, Select, Stat } from "../../ui";
 import { CallsTable } from "./CallsTable";
 
 type Metric = "cost" | "calls" | "tokens";
@@ -96,35 +96,37 @@ export function UsagePage() {
         <Breakdown title="By prompt" rows={(data?.by_prompt ?? []).map((r) => ({ key: r.prompt_key, label: r.prompt_key, ...r }))} />
       </div>
 
-      <Panel
-        className="mt-3"
-        title="Requests"
-        actions={
-          <div className="flex items-center gap-2">
-            <div className="w-40">
-              <Select
-                size="sm"
-                aria-label="Prompt"
-                value={prompt || "__all"}
-                onChange={(v) => setPrompt(v === "__all" ? "" : v)}
-                options={[{ value: "__all", label: "All prompts" }, ...(prompts.data ?? []).map((p) => ({ value: p.key, label: p.name }))]}
+      <section className="mt-6">
+        <SectionHeader
+          title="Requests"
+          actions={
+            <>
+              <div className="w-40">
+                <Select
+                  size="sm"
+                  aria-label="Prompt"
+                  value={prompt || "__all"}
+                  onChange={(v) => setPrompt(v === "__all" ? "" : v)}
+                  options={[{ value: "__all", label: "All prompts" }, ...(prompts.data ?? []).map((p) => ({ value: p.key, label: p.name }))]}
+                />
+              </div>
+              <Segmented
+                aria-label="Status"
+                value={status || "all"}
+                onChange={(v) => setStatus(v === "all" ? "" : (v as "ok" | "error"))}
+                options={[
+                  { value: "all", label: "All" },
+                  { value: "ok", label: "OK" },
+                  { value: "error", label: "Errors" },
+                ]}
               />
-            </div>
-            <Segmented
-              aria-label="Status"
-              value={status || "all"}
-              onChange={(v) => setStatus(v === "all" ? "" : (v as "ok" | "error"))}
-              options={[
-                { value: "all", label: "All" },
-                { value: "ok", label: "OK" },
-                { value: "error", label: "Errors" },
-              ]}
-            />
-          </div>
-        }
-      >
-        <CallsTable calls={calls.data} loading={calls.isPending} />
-      </Panel>
+            </>
+          }
+        />
+        <Panel>
+          <CallsTable calls={calls.data} loading={calls.isPending} />
+        </Panel>
+      </section>
     </>
   );
 }

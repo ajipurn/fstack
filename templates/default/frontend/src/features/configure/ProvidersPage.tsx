@@ -49,8 +49,6 @@ const PRESETS: Preset[] = [
   { id: "bedrock", label: "Bedrock", form: { kind: "bedrock", region: "us-east-1", catalog_id: "amazon-bedrock" } },
   { id: "google", label: "Gemini", form: { kind: "google", catalog_id: "google" } },
   { id: "workers-ai", label: "Workers AI", form: { kind: "cloudflare", catalog_id: "cloudflare-workers-ai" } },
-  { id: "openrouter", label: "OpenRouter", form: { kind: "openai", base_url: "https://openrouter.ai/api/v1", catalog_id: "openrouter" } },
-  { id: "ollama", label: "Ollama", form: { kind: "openai", base_url: "http://127.0.0.1:11434/v1", catalog_id: "" } },
 ];
 
 type BedrockApi = "converse" | "mantle";
@@ -151,8 +149,7 @@ export function ProvidersPage() {
       ) : !providers.data?.length ? (
         <Panel>
           <Empty icon={<PlugConnection />} title="No providers yet" action={<Button onClick={() => setEditing("new")}>Add provider</Button>}>
-            Connect OpenAI, Anthropic, Bedrock, Gemini, Workers AI — or any OpenAI-compatible endpoint like OpenRouter or
-            Ollama.
+            Connect OpenAI, Anthropic, Bedrock, Gemini or Cloudflare Workers AI.
           </Empty>
         </Panel>
       ) : (

@@ -220,7 +220,7 @@ production FastAPI + React dashboards.
 **Frontend**<br/>
 <sub>React 19 · Vite 8 · TypeScript 7 · Tailwind v4</sub>
 
-- **Overview**: KPIs, a spend chart and a setup checklist
+- **Overview**: KPIs, a spend chart and the latest requests
 - **Run**: pick a prompt, provider and model and try it
 - **Prompts**: versions, editor, diff, publish and activate
 - **Usage**: cost, requests and tokens over time by model and prompt, with a drawer per
