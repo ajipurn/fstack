@@ -3,20 +3,23 @@ import json
 import secrets
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Literal
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 from app.core.exceptions import ProviderError
 from app.db.migrations import migrate
 from app.db.session import engine_for, transaction
-from app.llm import backends
+from app.llm import backends, outputs
 from app.services import pricing, prompts
 
 ACCESS_KEY = "test-access-key-0123456789-abcdefghij"
-PROMPTS_DIR = Path(__file__).resolve().parents[1] / "prompts"
+# The template ships no prompts; tests run against these two.
+PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
 
 @pytest.fixture(autouse=True)
@@ -30,6 +33,19 @@ def settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setenv("APP_LOG_LLM_PAYLOADS", "true")
     yield
     get_settings.cache_clear()
+
+
+class Summary(BaseModel):
+    title: str = Field(description="Short headline, at most 8 words")
+    summary: str = Field(description="Two or three sentences")
+    key_points: list[str] = Field(description="3-5 bullet points", max_length=8)
+    sentiment: Literal["positive", "neutral", "negative", "mixed"]
+
+
+@pytest.fixture(autouse=True)
+def structured_summarize(monkeypatch: pytest.MonkeyPatch) -> None:
+    """tests/prompts/summarize.md answers with typed JSON, the way a project would list it."""
+    monkeypatch.setitem(outputs.OUTPUTS, "summarize", Summary)
 
 
 @pytest.fixture(autouse=True)

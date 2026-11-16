@@ -12,11 +12,12 @@ export const cues = {
   nav: { "data-cuelume-press": "page" },
 } as const;
 
+/** Off until the viewer turns it on. */
 function read(): boolean {
   try {
-    return localStorage.getItem(KEY) !== "off";
+    return localStorage.getItem(KEY) === "on";
   } catch {
-    return true;
+    return false;
   }
 }
 

@@ -20,7 +20,7 @@ from app.core.utils import dumps, loads, stamp
 from app.db.session import Connection
 from app.llm.backends import Usage, default_catalog
 
-FIRST_PARTY = ("openai", "anthropic", "google", "amazon-bedrock", "mistral", "xai", "deepseek")
+FIRST_PARTY = ("openai", "anthropic", "google", "amazon-bedrock", "cloudflare-workers-ai")
 _BEDROCK_PROFILE = re.compile(r"^(?:us|eu|apac|au|ca|jp|global|us-gov)\.")
 
 

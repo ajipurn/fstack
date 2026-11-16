@@ -332,7 +332,9 @@ def parse_prompt_file(path: Path) -> dict[str, str]:
 
 def sync_files(db: Connection, directory: Path) -> list[str]:
     """New prompt → v1 published + active. Changed file → a new *draft* (review first)."""
-    report = []
+    report: list[str] = []
+    if not directory.is_dir():
+        return report
     for path in sorted(directory.glob("*.md")):
         spec = parse_prompt_file(path)
         key = spec["key"]
