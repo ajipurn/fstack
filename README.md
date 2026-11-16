@@ -178,7 +178,7 @@ migrations of its own, fstack says when `alembic merge heads` is needed.
 the fstack commit it last got, and the answers it was made with:
 
 ```json
-{ "fstack": "0.3.0", "commit": "<fstack git sha>", "template": "default",
+{ "fstack": "0.4.0", "commit": "<fstack git sha>", "template": "default",
   "name": "acme-console", "title": "Acme Console", "api_port": 8410, "web_port": 5510,
   "accent": "#2f3037", "pm": "bun", "pm_version": "1.4.4" }
 ```
@@ -267,7 +267,7 @@ secret. See [Add a template from a repo](CONTRIBUTING.md#add-a-template-from-a-r
 
 ```bash
 uv tool upgrade fstack     # latest main
-uv tool install --force git+https://github.com/ajipurn/fstack@v0.3.0   # or pin a release
+uv tool install --force git+https://github.com/ajipurn/fstack@v0.4.0   # or pin a release
 ```
 
 [CHANGELOG.md](CHANGELOG.md) lists what each release changes. Its **Template** sections
