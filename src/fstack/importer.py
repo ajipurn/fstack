@@ -355,7 +355,7 @@ def _show(items: list[str], limit: int = 8) -> str:
 def add(args: argparse.Namespace) -> int:
     name = args.name
     if not cli.SLUG.fullmatch(name):
-        raise FstackError(f"template name {name!r} must be a slug like range or crm-lite")
+        raise FstackError(f"template name {name!r} must be a slug like survey or crm-lite")
     source = cli.installed_source()
     if source.repo is None or not Path(source.repo).is_dir():
         raise FstackError(

@@ -92,11 +92,11 @@ template's name. `fstack template add` writes both.
 ## Add a template from a repo
 
 ```bash
-fstack template add range --from ~/Developer/Projects/range-market-assessment --dry-run
-fstack template add range --from ~/Developer/Projects/range-market-assessment
+fstack template add survey --from ~/Developer/Projects/survey-portal --dry-run
+fstack template add survey --from ~/Developer/Projects/survey-portal
 fstack template add board --from git@github.com:acme/acme-board.git
 fstack template add board-v1 --from https://github.com/acme/acme-board.git --ref v1.2
-fstack new demo -t range --dir /tmp/range-demo    # try it, then commit templates/range
+fstack new demo -t survey --dir /tmp/survey-demo  # try it, then commit templates/survey
 ```
 
 This works in an fstack checkout (editable install). Commit the new template and open a
@@ -107,9 +107,9 @@ It is `fstack new` in reverse.
 1. **What it takes.** The repo's committed files at its latest commit, or at the branch,
    tag or commit `--ref` names. It never takes `.env` or `.fstack.json`.
 2. **What it replaces.** The project's own name in every spelling fstack uses
-   (`range-market-assessment`, `range_market_assessment`, "Range Market Assessment"), its
-   ports and its accent go back to the [starter tokens](#working-on-a-template). That way
-   `fstack new -t range` renames them for each new project.
+   (`survey-portal`, `survey_portal`, "Survey Portal"), its ports and its accent go back
+   to the [starter tokens](#working-on-a-template). That way `fstack new -t survey`
+   renames them for each new project.
 3. **Where the answers come from**, in this order:
    1. The repo's `.fstack.json`.
    2. Its files, when fstack made the repo.
@@ -127,7 +127,7 @@ It is `fstack new` in reverse.
 It reports these and leaves them to you:
 
 - what looks like a secret
-- other spellings of the name (`RangeMarketAssessment`)
+- other spellings of the name (`SurveyPortal`)
 - paths with the name in them (fstack never renames paths)
 - starter tokens the repo already had
 
