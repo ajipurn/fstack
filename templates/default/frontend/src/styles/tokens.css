@@ -72,6 +72,13 @@
   --info-soft: #edf2fe;
   --info-ink: #2a4bb5;
 
+  /* Syntax colors for highlighted payloads (lib/highlight.ts). */
+  --syn-key: #2f55c8;
+  --syn-string: #1a7a3a;
+  --syn-number: #b0540b;
+  --syn-literal: #8a3fbd;
+  --syn-tag: #b02a6b;
+
   --shadow-xs: 0 1px 1px rgb(19 19 22 / 0.04);
   --shadow-card: 0 1px 2px rgb(19 19 22 / 0.04), 0 4px 12px -6px rgb(19 19 22 / 0.06);
   --shadow-raised: 0 1px 2px rgb(19 19 22 / 0.05), 0 8px 24px -12px rgb(19 19 22 / 0.16);
@@ -128,6 +135,12 @@
   --info: #7b9bff;
   --info-soft: #162042;
   --info-ink: #aec2ff;
+
+  --syn-key: #9db4ff;
+  --syn-string: #86d6a0;
+  --syn-number: #f0b46c;
+  --syn-literal: #d2a8ff;
+  --syn-tag: #f59ac0;
 
   --shadow-xs: 0 1px 1px rgb(0 0 0 / 0.3);
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
