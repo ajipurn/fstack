@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { Gear, Person, Sparkles, TriangleExclamation } from "@gravity-ui/icons";
+import { useMemo, useState } from "react";
 import { ago, dateTime, ms, perMillion, tokens, usd } from "../../lib/format";
-import { useCall } from "../../lib/hooks";
-import type { LlmCall } from "../../lib/types";
-import { Chip, Drawer, Empty, Skeleton } from "../../ui";
+import { formatJson, locateInputs } from "../../lib/highlight";
+import { useCall, usePrompt } from "../../lib/hooks";
+import type { LlmCall, LlmCallDetail } from "../../lib/types";
+import { Chip, CodeBlock, CopyButton, Drawer, Empty, Skeleton } from "../../ui";
 
 export function CallsTable({ calls, loading, compact }: { calls: LlmCall[] | undefined; loading?: boolean; compact?: boolean }) {
   const [open, setOpen] = useState<string | null>(null);
@@ -75,19 +77,26 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 function CallDrawer({ id, onClose }: { id: string | null; onClose: () => void }) {
   const { data: call } = useCall(id);
+  // The prompt version's template tells which parts of the user message were inputs.
+  const { data: prompt } = usePrompt(call?.request ? call.prompt_key : "");
+  const inputs = useMemo(() => {
+    const template = prompt?.versions.find((v) => v.version === call?.prompt_version)?.user_template;
+    return template && call?.request ? locateInputs(template, call.request.user) : [];
+  }, [prompt, call]);
+  const response = useMemo(() => formatJson(call?.response), [call?.response]);
   return (
     <Drawer
       open={!!id}
       onOpenChange={(next) => !next && onClose()}
       title={call ? `${call.prompt_key} · ${call.model}` : "Call"}
       description={call ? dateTime(call.created_at) : undefined}
-      width="34rem"
+      actions={call && <CopyButton size="sm" tooltip="Copy call as JSON" text={() => callJson(call)} />}
+      width="40rem"
     >
       {!call ? (
         <Skeleton className="h-40" />
       ) : (
-        <div className="space-y-5">
-          {call.error && <div className="code !bg-danger-soft !text-danger-ink">{call.error}</div>}
+        <div className="space-y-6">
           <section>
             <h3 className="mb-1 text-xs font-medium text-muted">Request</h3>
             <div className="divide-y divide-line">
@@ -120,28 +129,58 @@ function CallDrawer({ id, onClose }: { id: string | null; onClose: () => void })
               )}
             </div>
           </section>
-          {call.request ? (
-            <>
-              <section>
-                <h3 className="mb-1.5 text-xs font-medium text-muted">System</h3>
-                <pre className="code max-h-64 overflow-auto">{call.request.system || "—"}</pre>
-              </section>
-              <section>
-                <h3 className="mb-1.5 text-xs font-medium text-muted">User</h3>
-                <pre className="code max-h-64 overflow-auto">{call.request.user}</pre>
-              </section>
-              <section>
-                <h3 className="mb-1.5 text-xs font-medium text-muted">Response</h3>
-                <pre className="code max-h-80 overflow-auto">{call.response || "—"}</pre>
-              </section>
-            </>
-          ) : (
-            <p className="text-xs text-muted">
-              Payloads aren’t stored. Set <code>APP_LOG_LLM_PAYLOADS=true</code> to keep prompts and outputs.
-            </p>
-          )}
+          <section className="space-y-3">
+            <h3 className="text-xs font-medium text-muted">Messages</h3>
+            {call.error && <CodeBlock title="Error" icon={<TriangleExclamation />} tone="danger" text={call.error} />}
+            {call.request ? (
+              <>
+                <CodeBlock title="System" icon={<Gear />} text={call.request.system} />
+                <CodeBlock title="User" icon={<Person />} tone="info" text={call.request.user} marks={inputs} />
+                {call.response !== null && (
+                  <CodeBlock
+                    title="Response"
+                    icon={<Sparkles />}
+                    tone="ok"
+                    text={response ?? call.response}
+                    badge={response && <Chip outline>JSON · formatted</Chip>}
+                  />
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-muted">
+                Payloads aren’t stored. Set <code>APP_LOG_LLM_PAYLOADS=true</code> to keep prompts and outputs.
+              </p>
+            )}
+          </section>
         </div>
       )}
     </Drawer>
+  );
+}
+
+/** The call as one JSON document, for pasting into an issue or another tool. */
+function callJson(call: LlmCallDetail): string {
+  return JSON.stringify(
+    {
+      prompt: { key: call.prompt_key, version: call.prompt_version, digest: call.prompt_digest },
+      provider: call.provider_name || call.provider_kind,
+      model: call.model,
+      status: call.status,
+      error: call.error,
+      created_at: call.created_at,
+      latency_ms: call.latency_ms,
+      usage: {
+        input_tokens: call.input_tokens,
+        output_tokens: call.output_tokens,
+        cache_read_tokens: call.cache_read_tokens,
+        cache_write_tokens: call.cache_write_tokens,
+        cost_usd: call.cost_usd,
+      },
+      system: call.request?.system ?? null,
+      user: call.request?.user ?? null,
+      response: call.response,
+    },
+    null,
+    2,
   );
 }
