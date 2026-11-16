@@ -5,6 +5,19 @@ or template changes a project has to act on (a migration, a new dependency, a
 `.fstack.json` change), and a patch release fixes things. **Template** lists what
 `fstack update` brings into projects made from that template.
 
+## 0.4.1 — 2026-11-16
+
+### Template (default)
+
+- **Highlighted, copyable payloads in the call drawer** (Usage → a request). System, User
+  and Response sit in labelled blocks with syntax highlighting (JSON, also inside prose,
+  prompt markdown and `{{placeholders}}`), a **Copy** button, and folding past ~16 lines.
+  In the User message, each template variable's value is marked with its name, matched
+  against the prompt version's template, so older calls get the marks too. A Response that
+  is a JSON document is pretty-printed, and the drawer header copies the whole call as
+  JSON. New primitives: `ui/CodeBlock` and `ui/CopyButton`. No migration, no new
+  dependency.
+
 ## 0.4.0 — 2026-11-16
 
 ### Template (default)
