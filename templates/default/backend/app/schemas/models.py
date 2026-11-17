@@ -158,3 +158,14 @@ class ManualPrice(Model):
 class JobCreate(Model):
     kind: str = Field(min_length=1, max_length=80)
     payload: dict[str, Any] = Field(default_factory=dict)
+
+
+# ── settings ─────────────────────────────────────────────────────────────────
+
+NavPosition = Literal["top", "side"]
+
+
+class SettingsUpdate(Model):
+    """Fields left out keep their value."""
+
+    nav_position: NavPosition | None = None

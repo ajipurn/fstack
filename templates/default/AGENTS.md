@@ -57,6 +57,10 @@ frontend/  React + Vite + Tailwind v4. src/{app,features,ui,lib,styles}
 - Motion: 120–280 ms, `--ease-out`, interruptible transitions; everything respects
   `prefers-reduced-motion`. Numbers that change use `<Morph>`.
 - Text sizes: 13px body, 12px secondary, 20px page titles.
+- The app's name lives in `src/app/brand.ts`. The logo (`BrandMark`) and the favicon
+  (`vite.config.ts`) are drawn from `APP_NAME` and the accent: never hard-code either.
+- Workspace-wide preferences (the navigation layout today) are `services/settings.py`
+  keys with a default, read with `useSettings()`; Configure → Layout edits them.
 
 ## Commands
 

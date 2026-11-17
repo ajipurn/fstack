@@ -1,9 +1,11 @@
 /** Query/mutation hooks. One place for keys, endpoints and cache updates. */
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useCallback, useRef } from "react";
+import { flushSync } from "react-dom";
 import { del, get, post, put } from "./api";
 import { notify } from "./notify";
 import { keys, queryClient } from "./query";
+import { withTransition } from "./theme";
 import type {
   Health,
   Job,
@@ -18,6 +20,7 @@ import type {
   RunInput,
   RunResult,
   UsageSummary,
+  WorkspaceSettings,
 } from "./types";
 
 // ── reads ───────────────────────────────────────────────────────────────────
@@ -63,7 +66,63 @@ export const useJobs = () =>
       query.state.data?.jobs.some((j) => j.status === "queued" || j.status === "running") ? 1500 : 15_000,
   });
 
+// The last settings this browser saw, so the shell paints in the right layout before
+// /settings answers. Only a hint: the server's copy wins.
+const SETTINGS_HINT = "fstack-starter:settings";
+
+function settingsHint(): WorkspaceSettings | undefined {
+  try {
+    const raw = localStorage.getItem(SETTINGS_HINT);
+    return raw ? (JSON.parse(raw) as WorkspaceSettings) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function rememberSettings(settings: WorkspaceSettings) {
+  try {
+    localStorage.setItem(SETTINGS_HINT, JSON.stringify(settings));
+  } catch {
+    /* private mode */
+  }
+}
+
+export const useSettings = () =>
+  useQuery({
+    queryKey: keys.settings,
+    queryFn: async () => {
+      const settings = await get<WorkspaceSettings>("/settings");
+      rememberSettings(settings);
+      return settings;
+    },
+    placeholderData: settingsHint,
+    staleTime: 60_000,
+  });
+
 // ── writes ──────────────────────────────────────────────────────────────────
+
+/** Save workspace settings. The UI follows at once (cross-faded), and rolls back on error. */
+export function useSaveSettings() {
+  return useMutation({
+    mutationFn: (body: Partial<WorkspaceSettings>) => put<WorkspaceSettings>("/settings", body),
+    onMutate: async (body) => {
+      await queryClient.cancelQueries({ queryKey: keys.settings });
+      const previous = queryClient.getQueryData<WorkspaceSettings>(keys.settings);
+      if (previous) {
+        withTransition(() => flushSync(() => queryClient.setQueryData(keys.settings, { ...previous, ...body })));
+      }
+      return { previous };
+    },
+    onError: (_error, _body, context) => {
+      if (context?.previous) queryClient.setQueryData(keys.settings, context.previous);
+    },
+    onSuccess: (settings) => {
+      queryClient.setQueryData(keys.settings, settings);
+      rememberSettings(settings);
+      notify.success("Saved for everyone in this workspace");
+    },
+  });
+}
 
 export type ProviderInput = Omit<
   Provider,

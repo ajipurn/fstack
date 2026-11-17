@@ -714,7 +714,8 @@ def infer_answers(project: Path) -> Answers:
 
     found: dict[str, object] = {
         "name": find("frontend/package.json", r'"name":\s*"(.+?)-web"'),
-        "title": find("frontend/src/app/AppShell.tsx", r'^const APP_NAME = "(.+?)";'),
+        "title": find("frontend/src/app/brand.ts", r'^export const APP_NAME = "(.+?)";')
+        or find("frontend/src/app/AppShell.tsx", r'^const APP_NAME = "(.+?)";'),
         "api_port": find("Makefile", r"^API_PORT \?= (\d+)"),
         "web_port": find("Makefile", r"^WEB_PORT \?= (\d+)"),
         "accent": find("frontend/src/styles/tokens.css", r"--accent-base: (#[0-9a-fA-F]{6}); /\* fstack:accent \*/"),

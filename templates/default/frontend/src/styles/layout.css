@@ -13,7 +13,30 @@
 }
 
 
-/* ── App shell: Clerk-style two-row header ─────────────────────────────── */
+/* ── App shell: a two-row header, or a sidebar (Configure → Layout) ─────── */
+.app-shell {
+  /* How far sticky content sits below the shell's own sticky bar. */
+  --shell-top: calc(var(--header-h) + var(--tabs-h));
+}
+.app-shell[data-nav="side"] {
+  --shell-top: 0px;
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  min-height: 100dvh;
+  background: var(--sidebar-bg);
+}
+html:has(.app-shell[data-nav="side"]) {
+  background: var(--sidebar-bg);
+}
+/* The page sits on an inset sheet beside the sidebar, like a document on a desk. */
+.app-shell[data-nav="side"] .app-content {
+  min-width: 0;
+  min-height: calc(100dvh - 1rem);
+  margin: 0.5rem 0.5rem 0.5rem 0;
+  border-radius: var(--radius-lg);
+  background: var(--canvas);
+  box-shadow: var(--sheet-shadow);
+}
 .app-header {
   position: sticky;
   top: 0;
@@ -44,6 +67,37 @@
   background: var(--accent);
   color: var(--accent-ink);
   box-shadow: var(--btn-inner), 0 0 0 1px var(--btn-ring), 0 1px 2px rgb(0 0 0 / 0.12);
+  /* The app's initials (app/brand.ts → monogram). */
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  user-select: none;
+}
+.brand-mark[data-letters="2"] {
+  font-size: 0.625rem;
+  letter-spacing: -0.02em;
+}
+.brand-mark[data-size="md"] {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+}
+.brand-mark[data-size="md"][data-letters="2"] {
+  font-size: 0.6875rem;
+}
+.brand-mark[data-size="lg"] {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.625rem;
+  font-size: 1.0625rem;
+}
+.brand-mark[data-size="lg"][data-letters="2"] {
+  font-size: 0.875rem;
+}
+.brand-link {
+  min-width: 0;
 }
 .crumb-sep {
   color: var(--line-3);
@@ -142,6 +196,157 @@ a.crumb:hover {
   transition: none;
 }
 
+/* Vertical (sidebar): the same pill, gliding along y; the active item is a raised
+   chip that springs between routes. Group labels sit between runs of items. */
+.nav-tabs[data-orientation="vertical"] {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+  height: auto;
+  margin-inline: 0;
+  overflow: visible;
+}
+.nav-tabs[data-orientation="vertical"] .nav-tab {
+  gap: 0.625rem;
+  height: 2rem;
+  padding: 0 0.625rem;
+  border-radius: var(--radius-md);
+  color: var(--ink-2);
+}
+.nav-tabs[data-orientation="vertical"] .nav-tab svg {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  color: var(--faint);
+  transition: color var(--dur-fast) ease;
+}
+.nav-tabs[data-orientation="vertical"] .nav-tab:hover svg {
+  color: var(--muted);
+}
+.nav-tabs[data-orientation="vertical"] .nav-tab[aria-current="page"],
+.nav-tabs[data-orientation="vertical"] .nav-tab[aria-current="page"] svg {
+  color: var(--ink);
+}
+.nav-group {
+  padding: 1rem 0.625rem 0.375rem;
+  color: var(--faint);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.nav-group:first-of-type {
+  padding-top: 0.25rem;
+}
+.nav-tabs[data-orientation="vertical"] .nav-hover,
+.nav-tabs[data-orientation="vertical"] .nav-indicator {
+  top: 0;
+  right: 0;
+  bottom: auto;
+  margin-top: 0;
+  border-radius: var(--radius-md);
+  will-change: transform, height;
+}
+.nav-tabs[data-orientation="vertical"] .nav-hover {
+  background: var(--sidebar-hover);
+  transition:
+    transform 200ms var(--ease-out),
+    height 200ms var(--ease-out),
+    opacity 150ms ease;
+}
+.nav-tabs[data-orientation="vertical"] .nav-hover[data-instant] {
+  transition: opacity 150ms ease;
+}
+.nav-tabs[data-orientation="vertical"] .nav-indicator {
+  background: var(--sidebar-active);
+  box-shadow: var(--sidebar-active-shadow);
+  transition:
+    transform 280ms var(--ease-spring),
+    height 280ms var(--ease-spring);
+}
+.nav-tabs[data-orientation="vertical"] .nav-indicator[data-instant] {
+  transition: none;
+}
+
+/* Sidebar: stuck to the left edge, full height; brand on top, the account at the foot. */
+.app-sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100dvh;
+  padding: 0.5rem 0.625rem 0.625rem;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex: none;
+  min-height: 2.75rem;
+  margin-top: 0.25rem;
+  padding: 0.375rem;
+  border-radius: var(--radius-md);
+  line-height: 1.3;
+  transition: background-color var(--dur-fast) ease;
+}
+.sidebar-brand:hover {
+  background: var(--sidebar-hover);
+}
+.sidebar-brand:focus-visible,
+.account-card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.sidebar-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: auto;
+  padding-top: 0.625rem;
+  box-shadow: inset 0 1px 0 var(--line-2);
+}
+
+/* Account: an avatar in the header; a card with a name in the sidebar. */
+.account-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+.account-trigger {
+  border-radius: 999px;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.account-trigger:active {
+  transform: scale(0.95);
+}
+.account-card {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.375rem;
+  border-radius: var(--radius-md);
+  line-height: 1.3;
+  transition: background-color var(--dur-fast) ease;
+}
+.account-card:hover,
+.account-card[data-popup-open] {
+  background: var(--sidebar-hover);
+}
+.account-card-chevron {
+  flex: none;
+  color: var(--faint);
+}
+
 /* ── Page ──────────────────────────────────────────────────────────────── */
 .page {
   max-width: var(--page-max);
@@ -232,6 +437,165 @@ a.crumb:hover {
 }
 .subnav-item[aria-current="page"] svg {
   color: var(--ink);
+}
+
+/* Configure → Layout: one card per layout, each with a miniature of it. */
+.layout-option {
+  display: flex;
+  flex-direction: column;
+  padding: 0.1875rem;
+  border-radius: 0.9375rem;
+  background: var(--surface-3);
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  box-shadow: 0 0 0 1px transparent;
+  transition:
+    box-shadow var(--dur) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.layout-option:hover {
+  box-shadow: 0 0 0 1px var(--line-2);
+}
+.layout-option:active {
+  transform: scale(0.995);
+}
+.layout-option[aria-checked="true"] {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.layout-option:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+.layout-option-body {
+  padding: 0.875rem;
+  border-radius: 0.75rem;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line), 0 2px 5px -2px rgb(19 19 22 / 0.08);
+}
+.layout-option-foot {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.75rem 0.75rem 0.625rem;
+}
+.layout-radio {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.0625rem;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-3);
+  transition: background-color var(--dur) ease, box-shadow var(--dur) ease;
+}
+.layout-option[aria-checked="true"] .layout-radio {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: none;
+}
+
+.layout-preview {
+  display: grid;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--canvas);
+  box-shadow: 0 0 0 1px var(--line);
+}
+.layout-preview[data-layout="top"] {
+  grid-template-rows: auto auto 1fr;
+}
+.layout-preview[data-layout="side"] {
+  grid-template-columns: 30% minmax(0, 1fr);
+  background: var(--sidebar-bg);
+}
+.lp-bar,
+.lp-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.3125rem;
+  padding: 0.5rem 0.625rem 0.3125rem;
+  background: var(--surface);
+}
+.lp-tabs {
+  padding-top: 0;
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+.lp-tab {
+  width: 1.25rem;
+  height: 0.3125rem;
+  border-radius: 999px;
+  background: var(--line-2);
+}
+.lp-body,
+.lp-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+  padding: 0.625rem;
+}
+.lp-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3125rem;
+  padding: 0.5625rem 0.4375rem;
+}
+.lp-item {
+  height: 0.5rem;
+  border-radius: 0.1875rem;
+  background: var(--line);
+}
+.lp-sheet {
+  margin: 0.3125rem 0.3125rem 0.3125rem 0;
+  border-radius: 0.375rem;
+  background: var(--canvas);
+  box-shadow: 0 0 0 1px var(--line);
+}
+.lp-tab[data-active],
+.lp-item[data-active] {
+  background: var(--ink-2);
+}
+.lp-item[data-active] {
+  background: var(--sidebar-active);
+  box-shadow: var(--sidebar-active-shadow);
+}
+.lp-mark {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 0.15rem;
+  background: var(--accent);
+}
+.lp-line {
+  height: 0.3125rem;
+  border-radius: 999px;
+  background: var(--line-2);
+}
+.lp-dot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 999px;
+  background: var(--line-2);
+}
+.lp-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.3125rem;
+}
+.lp-cards > span,
+.lp-block {
+  border-radius: 0.25rem;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line);
+}
+.lp-cards > span {
+  height: 1.125rem;
+}
+.lp-block {
+  flex: 1;
+  min-height: 1.5rem;
 }
 
 /* Auth screen */

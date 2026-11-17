@@ -190,3 +190,7 @@ export type Job = {
   started_at: string | null;
   finished_at: string | null;
 };
+
+/** Workspace settings (Configure → Layout), shared by everyone who signs in. */
+export type NavPosition = "top" | "side";
+export type WorkspaceSettings = { nav_position: NavPosition };

@@ -5,6 +5,24 @@ or template changes a project has to act on (a migration, a new dependency, a
 `.fstack.json` change), and a patch release fixes things. **Template** lists what
 `fstack update` brings into projects made from that template.
 
+## Unreleased
+
+### Template (default)
+
+- **Configure → Layout: navigation on top or in a sidebar**, chosen from the dashboard
+  for the whole workspace. The sidebar groups the pages (Workspace, Settings), shows the
+  environment under the app's name and the account at its foot, and sets the page on an
+  inset sheet; the current page is a raised chip that springs between routes. The switch
+  cross-fades, and below 768px the sidebar folds back into the header.
+  - Stored in a new `fstack_settings` table (`GET`/`PUT /api/settings`), so **run
+    `uv run tasks.py migrate`** after `fstack update` (migration `0003`). Settings with no
+    row read as their defaults in `services/settings.py`; adding one needs no migration.
+- **The logo and favicon follow the project's name.** Both show its initials ("Acme
+  Console" → AC) on the accent, instead of a fixed "F". `APP_NAME` moved to
+  `frontend/src/app/brand.ts`; `vite.config.ts` draws the favicon from it and from the
+  accent in `tokens.css`, so renaming the app or changing the accent updates both.
+  `public/favicon.svg` is gone.
+
 ## 0.4.1 — 2026-11-16
 
 ### Template (default)
