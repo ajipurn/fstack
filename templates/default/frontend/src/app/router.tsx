@@ -19,6 +19,7 @@ export const router = createBrowserRouter([
           { index: true, element: <Navigate to="providers" replace /> },
           { path: "providers", lazy: async () => ({ Component: (await import("../features/configure/ProvidersPage")).ProvidersPage }) },
           { path: "models", lazy: async () => ({ Component: (await import("../features/configure/ModelsPage")).ModelsPage }) },
+          { path: "layout", lazy: async () => ({ Component: (await import("../features/configure/LayoutPage")).LayoutPage }) },
         ],
       },
       { path: "*", element: <Navigate to="/" replace /> },

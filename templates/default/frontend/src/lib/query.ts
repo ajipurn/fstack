@@ -13,6 +13,7 @@ export const keys = {
   calls: (filters: Record<string, string>) => ["calls", filters] as const,
   call: (id: string) => ["call", id] as const,
   jobs: ["jobs"] as const,
+  settings: ["settings"] as const,
 };
 
 export const queryClient = new QueryClient({

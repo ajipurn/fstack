@@ -27,6 +27,7 @@
   --control-h-sm: 1.75rem; /* 28 */
   --header-h: 3.25rem; /* 52 */
   --tabs-h: 2.5rem; /* 40 */
+  --sidebar-w: 15rem; /* 240: Configure → Layout → Sidebar */
   --page-max: 1280px;
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -96,6 +97,13 @@
   --btn2-bg: #ffffff;
   --btn2-bg-hover: #f9f9fa;
 
+  /* Sidebar layout: a recessed rail, a raised chip for the current page, an inset sheet. */
+  --sidebar-bg: #f3f3f5;
+  --sidebar-hover: rgb(19 19 22 / 0.045);
+  --sidebar-active: var(--surface);
+  --sidebar-active-shadow: 0 0 0 1px var(--line), 0 1px 2px rgb(19 19 22 / 0.06);
+  --sheet-shadow: 0 0 0 1px var(--line), 0 1px 3px rgb(19 19 22 / 0.04), 0 8px 24px -16px rgb(19 19 22 / 0.12);
+
   /* notch-toast reads these */
   --background: var(--surface);
   --foreground: var(--ink);
@@ -157,4 +165,10 @@
   --btn2-ring: rgb(255 255 255 / 0.1);
   --btn2-bg: #1f1f23;
   --btn2-bg-hover: #27272c;
+
+  --sidebar-bg: #09090b;
+  --sidebar-hover: rgb(255 255 255 / 0.04);
+  --sidebar-active: #1a1a1d;
+  --sidebar-active-shadow: 0 0 0 1px #2a2a2f, inset 0 1px 0 rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.4);
+  --sheet-shadow: 0 0 0 1px var(--line), 0 1px 3px rgb(0 0 0 / 0.4);
 }

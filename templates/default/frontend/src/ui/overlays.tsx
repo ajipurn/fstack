@@ -149,18 +149,20 @@ export function Menu({
   trigger,
   items,
   align = "end",
+  side = "bottom",
   header,
 }: {
   trigger: ReactElement;
   items: MenuEntry[];
   align?: "start" | "center" | "end";
+  side?: "top" | "bottom" | "left" | "right";
   header?: ReactNode;
 }) {
   return (
     <BaseMenu.Root>
       <BaseMenu.Trigger render={trigger} />
       <BaseMenu.Portal>
-        <BaseMenu.Positioner sideOffset={6} align={align} className="z-[70]">
+        <BaseMenu.Positioner sideOffset={6} side={side} align={align} className="z-[70]">
           <BaseMenu.Popup className="popup min-w-[13rem]">
             {header}
             {items.map((item, index) => {

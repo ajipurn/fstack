@@ -178,7 +178,7 @@ migrations of its own, fstack says when `alembic merge heads` is needed.
 the fstack commit it last got, and the answers it was made with:
 
 ```json
-{ "fstack": "0.4.1", "commit": "<fstack git sha>", "template": "default",
+{ "fstack": "0.4.2", "commit": "<fstack git sha>", "template": "default",
   "name": "acme-console", "title": "Acme Console", "api_port": 8410, "web_port": 5510,
   "accent": "#2f3037", "pm": "bun", "pm_version": "1.4.4" }
 ```
@@ -225,10 +225,12 @@ production FastAPI + React dashboards.
 - **Prompts**: versions, editor, diff, publish and activate
 - **Usage**: cost, requests and tokens over time by model and prompt, with a drawer per
   call
-- **Configure**: providers, models and pricing
+- **Configure**: providers, models and pricing, and the layout (navigation on top or in
+  a sidebar) for the whole workspace
 - Base UI primitives, TanStack Query and a code-split data router
-- A two-row header with gliding tabs, refined button anatomy, 13px type, dark mode with a
-  view-transition cross-fade, and reduced motion respected
+- A two-row header with gliding tabs, or a sidebar with an inset page sheet; a logo and
+  favicon drawn from the project's name and accent; refined button anatomy, 13px type,
+  dark mode with a view-transition cross-fade, and reduced motion respected
 
 </td><td valign="top" width="33%">
 
@@ -267,7 +269,7 @@ secret. See [Add a template from a repo](CONTRIBUTING.md#add-a-template-from-a-r
 
 ```bash
 uv tool upgrade fstack     # latest main
-uv tool install --force git+https://github.com/ajipurn/fstack@v0.4.1   # or pin a release
+uv tool install --force git+https://github.com/ajipurn/fstack@v0.4.2   # or pin a release
 ```
 
 [CHANGELOG.md](CHANGELOG.md) lists what each release changes. Its **Template** sections

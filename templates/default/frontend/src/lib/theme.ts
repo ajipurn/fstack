@@ -15,7 +15,7 @@ export function applyTheme(theme: Theme) {
 }
 
 /** Cross-fade the whole UI when the browser supports view transitions. */
-function withTransition(change: () => void) {
+export function withTransition(change: () => void) {
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (!reduce && "startViewTransition" in document) {
     (document as Document & { startViewTransition: (cb: () => void) => unknown }).startViewTransition(change);

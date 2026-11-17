@@ -251,3 +251,15 @@ worker_heartbeats = sa.Table(
     ts("started_at"),
     **MYSQL,
 )
+
+# Workspace-wide preferences set from the dashboard (Configure → Layout): one row per
+# key, the value as JSON. A key with no row reads as its default (services/settings.py).
+settings = sa.Table(
+    "fstack_settings",
+    metadata,
+    sa.Column("key", sa.String(80), primary_key=True),
+    sa.Column("value", large_text(), nullable=False),
+    ts("updated_at"),
+    sa.Column("updated_by", sa.String(80), nullable=True),
+    **MYSQL,
+)

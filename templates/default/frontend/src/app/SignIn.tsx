@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { errorMessage } from "../lib/api";
 import { play } from "../lib/sound";
 import { Button, Field, Input } from "../ui";
+import { APP_NAME } from "./brand";
+import { BrandMark } from "./BrandMark";
 import { useSignIn } from "./session";
 
 export function SignIn() {
@@ -19,12 +21,10 @@ export function SignIn() {
         <div className="panel">
           <div className="panel-body px-7 pb-7 pt-8">
             <div className="mb-6 flex flex-col items-center text-center">
-              <span className="brand-mark mb-4 !size-9 !rounded-[10px]">
-                <svg viewBox="0 0 16 16" width="16" height="16" fill="none">
-                  <path d="M5 12V4h6M5 8h4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-              <h1 className="text-[15px] font-semibold tracking-[-0.01em]">Sign in to Fstack Starter</h1>
+              <div className="mb-4">
+                <BrandMark size="lg" />
+              </div>
+              <h1 className="text-[15px] font-semibold tracking-[-0.01em]">Sign in to {APP_NAME}</h1>
               <p className="mt-1 text-sm text-muted">Enter the access key for this workspace.</p>
             </div>
             <form onSubmit={submit} className="space-y-3.5">
